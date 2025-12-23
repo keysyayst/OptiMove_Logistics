@@ -54,40 +54,41 @@ class ShipmentController extends Controller
     public function store(Request $request)
     {
         try {
-            // Validate HANYA field yang dikirim dari form
+            // Validate field yang dikirim dari form
             $validator = Validator::make($request->all(), [
                 'sender_name' => 'required|string|max:255',
                 'receiver_name' => 'required|string|max:255',
-                'sender_address' => 'required|string',
-                'sender_city' => 'required|string',
-                'sender_province' => 'required|string',
-                'sender_postal_code' => 'required|string',
-                'sender_phone' => 'required|string',
-                'receiver_address' => 'required|string',
-                'receiver_city' => 'required|string',
-                'receiver_province' => 'required|string',
-                'receiver_postal_code' => 'required|string',
-                'receiver_phone' => 'required|string',
+                'sender_address' => 'nullable|string',
+                'sender_city' => 'nullable|string',
+                'sender_province' => 'nullable|string',
+                'sender_postal_code' => 'nullable|string',
+                'sender_phone' => 'nullable|string',
+                'receiver_address' => 'nullable|string',
+                'receiver_city' => 'nullable|string',
+                'receiver_province' => 'nullable|string',
+                'receiver_postal_code' => 'nullable|string',
+                'receiver_phone' => 'nullable|string',
                 'weight' => 'required|numeric|min:0',
-                'status' => 'required|in:pending,shipping,delivered',
-                'item_type' => 'required|string',
-                'item_quantity' => 'required|integer|min:1',
-                'service_type' => 'required|in:regular,express,cargo',
-                'shipping_cost' => 'required|numeric|min:0',
+                'status' => 'nullable|in:pending,shipping,delivered',
+                'item_type' => 'nullable|string',
+                'item_quantity' => 'nullable|integer|min:1',
+                'service_type' => 'nullable|in:regular,express,cargo',
+                'shipping_cost' => 'nullable|numeric|min:0',
                 'length_cm' => 'nullable|numeric|min:0',
                 'width_cm' => 'nullable|numeric|min:0',
                 'height_cm' => 'nullable|numeric|min:0',
+                'item_value' => 'nullable|numeric|min:0',
+                'use_insurance' => 'nullable|boolean',
             ]);
 
             if ($validator->fails()) {
-                logger()->error('Validation failed:', $validator->errors()->toArray());
                 return response()->json([
                     'message' => 'Validasi gagal',
                     'errors' => $validator->errors()
                 ], 422);
             }
 
-            // Generate kode
+            // Generate kode pengiriman
             $date = date('Ymd');
             $lastShipment = Shipment::where('shipment_code', 'LIKE', "SHIP-{$date}-%")
                                     ->orderBy('shipment_code', 'desc')
@@ -102,31 +103,13 @@ class ShipmentController extends Controller
 
             $shipmentCode = "SHIP-{$date}-{$newNumber}";
 
-            // Buat data shipment - HANYA field yang valid
-            $data = [
-                'shipment_code' => $shipmentCode,
-                'sender_name' => $request->sender_name,
-                'receiver_name' => $request->receiver_name,
-                'sender_address' => $request->sender_address,
-                'sender_city' => $request->sender_city,
-                'sender_province' => $request->sender_province,
-                'sender_postal_code' => $request->sender_postal_code,
-                'sender_phone' => $request->sender_phone,
-                'receiver_address' => $request->receiver_address,
-                'receiver_city' => $request->receiver_city,
-                'receiver_province' => $request->receiver_province,
-                'receiver_postal_code' => $request->receiver_postal_code,
-                'receiver_phone' => $request->receiver_phone,
-                'weight' => $request->weight,
-                'status' => $request->status,
-                'item_type' => $request->item_type,
-                'item_quantity' => $request->item_quantity,
-                'service_type' => $request->service_type,
-                'shipping_cost' => $request->shipping_cost,
-                'length_cm' => $request->length_cm,
-                'width_cm' => $request->width_cm,
-                'height_cm' => $request->height_cm,
-            ];
+            // Buat data shipment
+            $data = $validator->validated();
+            $data['shipment_code'] = $shipmentCode;
+            $data['status'] = $data['status'] ?? 'pending';
+            $data['service_type'] = $data['service_type'] ?? 'regular';
+            $data['item_quantity'] = $data['item_quantity'] ?? 1;
+            $data['use_insurance'] = $data['use_insurance'] ?? 0;
 
             // Create shipment
             $shipment = Shipment::create($data);
@@ -169,9 +152,27 @@ class ShipmentController extends Controller
         $validator = Validator::make($request->all(), [
             'sender_name' => 'sometimes|string|max:255',
             'receiver_name' => 'sometimes|string|max:255',
+            'sender_address' => 'sometimes|nullable|string',
+            'sender_city' => 'sometimes|nullable|string',
+            'sender_province' => 'sometimes|nullable|string',
+            'sender_postal_code' => 'sometimes|nullable|string',
+            'sender_phone' => 'sometimes|nullable|string',
+            'receiver_address' => 'sometimes|nullable|string',
+            'receiver_city' => 'sometimes|nullable|string',
+            'receiver_province' => 'sometimes|nullable|string',
+            'receiver_postal_code' => 'sometimes|nullable|string',
+            'receiver_phone' => 'sometimes|nullable|string',
             'weight' => 'sometimes|numeric|min:0',
             'status' => 'sometimes|in:pending,shipping,delivered',
             'shipping_cost' => 'sometimes|numeric|min:0',
+            'item_type' => 'sometimes|nullable|string',
+            'item_quantity' => 'sometimes|integer|min:1',
+            'service_type' => 'sometimes|in:regular,express,cargo',
+            'length_cm' => 'sometimes|nullable|numeric|min:0',
+            'width_cm' => 'sometimes|nullable|numeric|min:0',
+            'height_cm' => 'sometimes|nullable|numeric|min:0',
+            'item_value' => 'sometimes|nullable|numeric|min:0',
+            'use_insurance' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -183,7 +184,7 @@ class ShipmentController extends Controller
 
         try {
             $shipment = Shipment::findOrFail($id);
-            $shipment->update($request->all());
+            $shipment->update($validator->validated());
 
             return response()->json([
                 'message' => 'Pengiriman berhasil diupdate',
@@ -211,7 +212,8 @@ class ShipmentController extends Controller
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Gagal menghapus pengiriman'
+                'message' => 'Gagal menghapus pengiriman',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
