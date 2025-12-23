@@ -3,24 +3,23 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ShipmentController;
-use App\Models\Shipment;
 
-// AUTH: boleh diakses tanpa login
+// AUTH ROUTES (tanpa middleware)
 Route::post('auth/register', [AuthController::class, 'register']);
-Route::post('auth/login',    [AuthController::class, 'login']);
+Route::post('auth/login', [AuthController::class, 'login']);
 
-// GENERATE KODE (public)
-Route::get('shipments/generate-code', function () {
-    return response()->json([
-        'code' => Shipment::generateCode(),
-    ]);
-});
+// ✅ PENTING: Taruh route generate-code SEBELUM route dengan {id}
+Route::get('shipments/generate-code', [ShipmentController::class, 'generateCode']);
 
-// BUTUH JWT
+// PROTECTED ROUTES (dengan middleware auth:api)
 Route::middleware('auth:api')->group(function () {
+    Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
-    Route::get('auth/me',      [AuthController::class, 'me']);
 
-    Route::apiResource('shipments', ShipmentController::class);
+    // Shipments CRUD
+    Route::get('shipments', [ShipmentController::class, 'index']);
+    Route::post('shipments', [ShipmentController::class, 'store']);
+    Route::get('shipments/{id}', [ShipmentController::class, 'show']);
+    Route::put('shipments/{id}', [ShipmentController::class, 'update']);
+    Route::delete('shipments/{id}', [ShipmentController::class, 'destroy']);
 });
-

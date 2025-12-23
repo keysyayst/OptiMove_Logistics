@@ -10,41 +10,36 @@ class Shipment extends Model
     use HasFactory;
 
     protected $fillable = [
-    'shipment_code',
-    'sender_name',
-    'receiver_name',
-    'origin',
-    'destination',
-    'status',
-    'weight',
-    'shipping_cost',
+        'shipment_code',
+        'sender_name',
+        'receiver_name',
+        'sender_address',
+        'sender_city',
+        'sender_province',
+        'sender_postal_code',
+        'sender_phone',
+        'receiver_address',
+        'receiver_city',
+        'receiver_province',
+        'receiver_postal_code',
+        'receiver_phone',
+        'status',
+        'weight',
+        'shipping_cost',
+        'item_type',
+        'item_quantity',
+        'length_cm',
+        'width_cm',
+        'height_cm',
+        'service_type',
+    ];
 
-    'sender_address',
-    'sender_city',
-    'sender_province',
-    'sender_postal_code',
-    'sender_phone',
-    'receiver_address',
-    'receiver_city',
-    'receiver_province',
-    'receiver_postal_code',
-    'receiver_phone',
-    'item_type',
-    'item_quantity',
-    'length_cm',
-    'width_cm',
-    'height_cm',
-    'item_value',
-    'service_type',
-    'use_insurance',
-];
-
-
-    public static function generateCode(): string
-    {
-        $last = self::latest('id')->first();
-        $number = $last ? $last->id + 1 : 1;
-
-        return 'OPT-' . now()->format('ymd') . str_pad($number, 4, '0', STR_PAD_LEFT);
-    }
+    protected $casts = [
+        'weight' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'length_cm' => 'decimal:2',
+        'width_cm' => 'decimal:2',
+        'height_cm' => 'decimal:2',
+        'item_quantity' => 'integer',
+    ];
 }

@@ -260,8 +260,13 @@
 </div>
 
 <script>
+console.log('🚀 Script dashboard dimulai...');
+
 const token = localStorage.getItem('optimove_token');
+console.log('🔑 Token:', token ? 'Ada' : 'Tidak ada');
+
 if (!token) {
+    console.warn('⚠️ Token tidak ada, redirect ke login');
     window.location.href = '{{ route('login.page') }}';
 }
 
@@ -281,53 +286,131 @@ const shipmentCodeInput = document.getElementById('shipment_code');
 const itemTypeSelect = document.getElementById('item_type');
 const itemTypeOtherInput = document.getElementById('item_type_other');
 
+console.log('📋 Form element:', form ? 'Found' : 'NOT FOUND');
+console.log('📋 Modal element:', modal ? 'Found' : 'NOT FOUND');
+
 // KONSTANTA TARIF
-const TARIF_PER_KG = 5000;           // Rp 5.000 per kg
-const TARIF_PER_KM = 1500;           // Rp 1.500 per km
-const DIVIDER_VOLUMETRIK = 5000;     // 1 kg volumetrik = 5000 cm³
+const TARIF_PER_KG = 5000;
+const TARIF_PER_KM = 1500;
+const DIVIDER_VOLUMETRIK = 5000;
 
 let editingId = null;
 let shipmentsData = [];
 
-// Database estimasi jarak antar kota (dalam km)
-// Untuk implementasi production, bisa menggunakan API seperti Google Distance Matrix
-const cityDistances = {
-    'jakarta-bandung': 150,
-    'jakarta-surabaya': 800,
-    'jakarta-semarang': 450,
-    'jakarta-yogyakarta': 520,
-    'bandung-surabaya': 700,
-    'bandung-semarang': 350,
-    'surabaya-malang': 90,
-    'surabaya-bali': 350,
-    'semarang-yogyakarta': 120,
-    // Tambahkan lebih banyak rute sesuai kebutuhan
-};
+// ============================================
+// ESTIMASI JARAK MENGGUNAKAN OPENSTREETMAP
+// ============================================
 
-// Fungsi estimasi jarak berdasarkan kota
-function estimateDistance(cityFrom, cityTo) {
-    if (!cityFrom || !cityTo) return 0;
+const cityCoordinatesCache = {};
 
-    const from = cityFrom.toLowerCase().trim();
-    const to = cityTo.toLowerCase().trim();
+async function geocodeCity(cityName) {
+    if (cityCoordinatesCache[cityName]) {
+        return cityCoordinatesCache[cityName];
+    }
 
-    // Jika kota sama
-    if (from === to) return 10; // Default jarak dalam kota
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)},Indonesia&format=json&limit=1`;
 
-    // Cek dalam database
-    let key1 = `${from}-${to}`;
-    let key2 = `${to}-${from}`;
+        const res = await fetch(url, {
+            headers: {
+                'User-Agent': 'Optimove-App/1.0'
+            }
+        });
 
-    if (cityDistances[key1]) return cityDistances[key1];
-    if (cityDistances[key2]) return cityDistances[key2];
+        const data = await res.json();
 
-    // Default fallback: estimasi kasar berdasarkan panjang nama kota (untuk demo)
-    // Dalam production, gunakan API geocoding + distance calculation
-    return 200; // Default 200 km jika tidak ditemukan
+        if (data.length > 0) {
+            const coords = {
+                lat: parseFloat(data[0].lat),
+                lng: parseFloat(data[0].lon)
+            };
+
+            cityCoordinatesCache[cityName] = coords;
+            return coords;
+        }
+
+        return null;
+    } catch (e) {
+        console.error('Geocode error:', e);
+        return null;
+    }
 }
 
-// Fungsi menghitung total harga berdasarkan dimensi, berat, dan jarak
-function calculateShippingCost() {
+async function getDistanceFromOSRM(coordFrom, coordTo) {
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordFrom.lng},${coordFrom.lat};${coordTo.lng},${coordTo.lat}?overview=false`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            const distanceInMeters = data.routes[0].distance;
+            return Math.round(distanceInMeters / 1000);
+        }
+
+        return null;
+    } catch (e) {
+        console.error('OSRM error:', e);
+        return null;
+    }
+}
+
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+
+    return Math.round(distance);
+}
+
+async function estimateDistance(cityFrom, cityTo) {
+    if (!cityFrom || !cityTo) return 0;
+
+    const from = cityFrom.trim();
+    const to = cityTo.trim();
+
+    if (from.toLowerCase() === to.toLowerCase()) return 10;
+
+    const distanceInput = document.getElementById('estimated-distance');
+    if (distanceInput) {
+        distanceInput.value = 'Menghitung...';
+    }
+
+    try {
+        const coordFrom = await geocodeCity(from);
+        const coordTo = await geocodeCity(to);
+
+        if (!coordFrom || !coordTo) {
+            console.warn('Geocoding gagal, gunakan fallback');
+            return 200;
+        }
+
+        const distance = await getDistanceFromOSRM(coordFrom, coordTo);
+
+        if (distance) {
+            return distance;
+        }
+
+        return haversineDistance(coordFrom.lat, coordFrom.lng, coordTo.lat, coordTo.lng);
+
+    } catch (e) {
+        console.error('Error estimating distance:', e);
+        return 200;
+    }
+}
+
+// ============================================
+// PERHITUNGAN BIAYA PENGIRIMAN
+// ============================================
+
+async function calculateShippingCost() {
     const weight = Number(form.weight.value) || 0;
     const length = Number(form.length_cm.value) || 0;
     const width = Number(form.width_cm.value) || 0;
@@ -336,26 +419,15 @@ function calculateShippingCost() {
     const senderCity = form.sender_city.value || '';
     const receiverCity = form.receiver_city.value || '';
 
-    // 1. Hitung berat volumetrik
     const volume = length * width * height;
     const volumetricWeight = volume / DIVIDER_VOLUMETRIK;
-
-    // 2. Ambil yang lebih besar (berat aktual vs volumetrik)
     const chargeableWeight = Math.max(weight, volumetricWeight);
-
-    // 3. Hitung biaya berat
     const costWeight = chargeableWeight * TARIF_PER_KG;
 
-    // 4. Estimasi jarak
-    const distance = estimateDistance(senderCity, receiverCity);
-
-    // 5. Hitung biaya jarak
+    const distance = await estimateDistance(senderCity, receiverCity);
     const costDistance = distance * TARIF_PER_KM;
-
-    // 6. Total biaya
     const totalCost = costWeight + costDistance;
 
-    // Update display
     document.getElementById('total-price-display').textContent =
         'Rp ' + Math.round(totalCost).toLocaleString('id-ID');
     document.getElementById('shipping_cost').value = Math.round(totalCost);
@@ -369,7 +441,6 @@ function calculateShippingCost() {
     return totalCost;
 }
 
-// Event listeners untuk perhitungan otomatis
 const weightInput = form.querySelector('[name="weight"]');
 const lengthInput = form.querySelector('[name="length_cm"]');
 const widthInput = form.querySelector('[name="width_cm"]');
@@ -379,12 +450,15 @@ const receiverCityInput = form.querySelector('[name="receiver_city"]');
 
 [weightInput, lengthInput, widthInput, heightInput, senderCityInput, receiverCityInput].forEach(input => {
     if (input) {
-        input.addEventListener('input', calculateShippingCost);
-        input.addEventListener('change', calculateShippingCost);
+        input.addEventListener('input', async () => {
+            await calculateShippingCost();
+        });
+        input.addEventListener('change', async () => {
+            await calculateShippingCost();
+        });
     }
 });
 
-// Toggle kolom jenis barang lainnya
 if (itemTypeSelect && itemTypeOtherInput) {
     itemTypeSelect.addEventListener('change', () => {
         if (itemTypeSelect.value === 'lainnya') {
@@ -398,16 +472,19 @@ if (itemTypeSelect && itemTypeOtherInput) {
     });
 }
 
-// Generate kode pengiriman
 async function generateShipmentCode() {
     try {
         shipmentCodeInput.value = 'Sedang generate...';
-        const res = await fetch('/api/shipments/generate-code');
+
+        // ✅ TAMBAHKAN TOKEN
+        const res = await fetch('/api/shipments/generate-code', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
 
         if (!res.ok) {
-            console.error('Generate code gagal:', res.status, res.statusText);
-            const errorText = await res.text();
-            console.error('Response:', errorText);
+            console.error('Generate code gagal:', res.status);
             shipmentCodeInput.value = 'GAGAL-GENERATE';
             return null;
         }
@@ -422,14 +499,15 @@ async function generateShipmentCode() {
     }
 }
 
-// Buka & tutup modal
+
 async function openModal(mode, data = null) {
+    console.log('📂 Opening modal:', mode);
+
     editingId = data ? data.id : null;
     modalTitle.textContent = mode === 'create' ? 'Buat Pengiriman' : 'Ubah Pengiriman';
     formError.textContent = '';
 
     if (data) {
-        // Mode edit
         form.id.value = data.id;
         shipmentCodeInput.value = data.shipment_code || '';
 
@@ -465,11 +543,9 @@ async function openModal(mode, data = null) {
         }
         if (itemTypeSelect) itemTypeSelect.dispatchEvent(new Event('change'));
 
-        // Hitung ulang total harga
-        calculateShippingCost();
+        await calculateShippingCost();
 
     } else {
-        // Mode create
         form.reset();
         form.id.value = '';
         await generateShipmentCode();
@@ -478,7 +554,7 @@ async function openModal(mode, data = null) {
         form.item_quantity.value = 1;
         form.service_type.value = 'regular';
         if (itemTypeSelect) itemTypeSelect.dispatchEvent(new Event('change'));
-        calculateShippingCost();
+        await calculateShippingCost();
     }
 
     modal.classList.remove('hidden');
@@ -486,11 +562,11 @@ async function openModal(mode, data = null) {
 }
 
 function closeModal() {
+    console.log('❌ Closing modal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 }
 
-// Load profil user
 async function loadMe() {
     try {
         const res = await fetch('/api/auth/me', {
@@ -504,8 +580,9 @@ async function loadMe() {
     }
 }
 
-// Render kartu shipment
 function renderShipments(list) {
+    console.log('🎨 Rendering shipments:', list.length);
+
     shipmentsContainer.innerHTML = '';
     shipmentsData = list;
 
@@ -518,9 +595,6 @@ function renderShipments(list) {
     list.forEach(item => {
         const div = document.createElement('div');
         div.className = 'rounded-2xl border border-gray-800 bg-gradient-to-br from-[#1a1a1a] to-[#0b0b0b] p-4 text-sm space-y-2';
-
-        // Hitung estimasi jarak untuk display
-        const distance = estimateDistance(item.sender_city, item.receiver_city);
 
         div.innerHTML = `
             <div class="flex justify-between items-center">
@@ -539,10 +613,6 @@ function renderShipments(list) {
                 <div class="flex justify-between">
                     <span>Dimensi:</span>
                     <span>${item.length_cm || 0}×${item.width_cm || 0}×${item.height_cm || 0} cm</span>
-                </div>
-                <div class="flex justify-between">
-                    <span>Jarak:</span>
-                    <span>~${distance} km</span>
                 </div>
             </div>
             <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-700">
@@ -580,12 +650,15 @@ function renderShipments(list) {
     });
 }
 
-// Load data dari API
 async function loadShipments() {
+    console.log('🔄 Loading shipments...');
+
     try {
         const res = await fetch('/api/shipments', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        console.log('📡 Load shipments response:', res.status);
 
         if (res.status === 401) {
             localStorage.removeItem('optimove_token');
@@ -594,24 +667,30 @@ async function loadShipments() {
         }
 
         if (!res.ok) {
-            console.error('Load shipments gagal:', res.status, res.statusText);
-            const errorText = await res.text();
-            console.error('Response:', errorText);
+            console.error('❌ Load shipments gagal:', res.status);
             renderShipments([]);
             return;
         }
 
         const data = await res.json();
+        console.log('📦 Data shipments:', data);
+
         renderShipments(data);
     } catch (e) {
-        console.error('Network error load shipments:', e);
+        console.error('❌ Network error load shipments:', e);
         renderShipments([]);
     }
 }
 
-// Create / Update (form submit)
+// ============================================
+// FORM SUBMIT EVENT LISTENER
+// ============================================
+
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    console.log('🔥 FORM SUBMIT TRIGGERED!');
+
     formError.textContent = '';
 
     const payload = {
@@ -643,11 +722,18 @@ form.addEventListener('submit', async (e) => {
         service_type: form.service_type.value,
     };
 
+    console.log('📦 Payload:', payload);
+
     const isEdit = !!editingId;
     const url = isEdit ? `/api/shipments/${editingId}` : '/api/shipments';
     const method = isEdit ? 'PUT' : 'POST';
 
+    console.log('🌐 Method:', method);
+    console.log('🌐 URL:', url);
+
     try {
+        console.log('🚀 Sending request...');
+
         const res = await fetch(url, {
             method,
             headers: {
@@ -657,24 +743,39 @@ form.addEventListener('submit', async (e) => {
             body: JSON.stringify(payload),
         });
 
+        console.log('📡 Response status:', res.status);
+
         if (!res.ok) {
-            console.error('Save gagal:', res.status);
             const err = await res.json().catch(() => ({}));
+            console.error('❌ Error response:', err);
             formError.textContent = err.message ?? `Gagal menyimpan: ${res.status}`;
             return;
         }
 
+        const result = await res.json();
+        console.log('✅ Success!', result);
+
         closeModal();
         await loadShipments();
+
+        console.log('✅ Data berhasil disimpan dan list di-refresh');
+
     } catch (err) {
-        console.error('Network error save:', err);
+        console.error('❌ Network error:', err);
         formError.textContent = 'Terjadi kesalahan jaringan.';
     }
 });
 
-// Delete
+console.log('Event listener form submit sudah dipasang');
+
+// ============================================
+// DELETE
+// ============================================
+
 async function handleDelete(id) {
     if (!confirm('Yakin ingin menghapus pengiriman ini?')) return;
+
+    console.log('🗑️ Deleting shipment:', id);
 
     try {
         const res = await fetch(`/api/shipments/${id}`, {
@@ -687,6 +788,7 @@ async function handleDelete(id) {
             return;
         }
 
+        console.log('Deleted successfully');
         await loadShipments();
     } catch (e) {
         console.error('Delete error:', e);
@@ -694,7 +796,10 @@ async function handleDelete(id) {
     }
 }
 
-// Logout
+// ============================================
+// LOGOUT
+// ============================================
+
 document.getElementById('logout-btn').addEventListener('click', async () => {
     try {
         await fetch('/api/auth/logout', {
@@ -709,13 +814,25 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
     }
 });
 
-// Event open/close modal
-openCreateBtn.addEventListener('click', () => openModal('create'));
+// ============================================
+// EVENT OPEN/CLOSE MODAL
+// ============================================
+
+openCreateBtn.addEventListener('click', () => {
+    console.log('Tombol Buat Pengiriman diklik');
+    openModal('create');
+});
+
 closeModalBtn.addEventListener('click', closeModal);
 cancelModalBtn.addEventListener('click', closeModal);
 
+// ============================================
 // INIT
+// ============================================
+
+console.log('Initializing...');
 loadMe();
 loadShipments();
+console.log('Dashboard siap!');
 </script>
 @endsection
