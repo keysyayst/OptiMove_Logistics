@@ -35,7 +35,7 @@
                 </div>
                 <div class="flex gap-3">
                     <a href="{{ route('home') }}" class="text-white hover:bg-orange-700 px-4 py-2 rounded-lg text-sm transition">
-                        <i class="fas fa-home mr-2"></i>Home
+                        <i class="fas fa-home mr-2"></i>Beranda
                     </a>
                     <a href="{{ route('dashboard') }}" class="text-white hover:bg-orange-700 px-4 py-2 rounded-lg text-sm transition">
                         <i class="fas fa-dashboard mr-2"></i>Dashboard

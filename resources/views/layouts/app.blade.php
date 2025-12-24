@@ -22,35 +22,18 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <!-- Logo -->
-                <a href="{{ route('dashboard') }}" class="flex items-center">
-                    <span class="text-xl font-bold tracking-wide">
-                        OPTI<span class="text-orange-500">MOVE</span>
-                    </span>
+                <a href="{{ route('home') }}" class="text-xl font-bold tracking-wide hover:opacity-80 transition">
+                    OPTI<span class="text-orange-500">MOVE</span>
                 </a>
 
-                <!-- Menu -->
+                <!-- Menu Kanan -->
                 <div class="flex items-center space-x-6">
-                    <a href="{{ route('dashboard') }}" class="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition text-sm">
-                        <i class="fas fa-home mr-2"></i>Dashboard
+                    <a href="{{ route('home') }}" class="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition text-sm">
+                        <i class="fas fa-home mr-2"></i>Beranda
                     </a>
                     <a href="{{ route('tracking.index') }}" class="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition text-sm">
                         <i class="fas fa-search-location mr-2"></i>Tracking
                     </a>
-
-                    <!-- User Menu -->
-                    <div class="relative" id="userMenuWrapper">
-                        <button onclick="toggleUserMenu()"
-                                class="flex items-center gap-2 text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition text-sm">
-                            <i class="fas fa-user-circle text-lg"></i>
-                            <span id="userName">User</span>
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-xl z-50">
-                            <a href="#" onclick="logout(event)" class="block px-4 py-3 text-sm text-gray-300 hover:bg-orange-600 hover:text-white transition rounded-lg">
-                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                            </a>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -67,47 +50,6 @@
         // Setup Axios dengan token
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        }
-
-        // Get user info (hanya jika ada token)
-        if (token && document.getElementById('userName')) {
-            axios.get('/api/auth/me')
-                .then(response => {
-                    document.getElementById('userName').textContent = response.data.name;
-                })
-                .catch(error => {
-                    console.error('Error loading user:', error);
-                    // Jangan redirect di sini, biar halaman yang handle
-                });
-        }
-
-        function toggleUserMenu() {
-            const dropdown = document.getElementById('userDropdown');
-            dropdown.classList.toggle('hidden');
-        }
-
-        function logout(event) {
-            event.preventDefault();
-
-            axios.post('/api/auth/logout')
-                .then(() => {
-                    localStorage.removeItem('optimove_token');
-                    window.location.href = '/login';
-                })
-                .catch(() => {
-                    localStorage.removeItem('optimove_token');
-                    window.location.href = '/login';
-                });
-        }
-
-        // Close dropdown when clicking outside
-        window.onclick = function(event) {
-            if (!event.target.closest('#userMenuWrapper')) {
-                const dropdown = document.getElementById('userDropdown');
-                if (dropdown && !dropdown.classList.contains('hidden')) {
-                    dropdown.classList.add('hidden');
-                }
-            }
         }
     </script>
 
