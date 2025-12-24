@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Shipment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Models\TrackingHistory;
+use Illuminate\Support\Facades\Auth;
 
 class ShipmentController extends Controller
 {
@@ -223,6 +225,19 @@ class ShipmentController extends Controller
 
             // Create shipment
             $shipment = Shipment::create($data);
+            TrackingHistory::create([
+            'shipment_id' => $shipment->id,
+            'status' => $data['status'],
+             'location' => $data['sender_city'] . ', ' . $data['sender_province'],
+            'description' => 'Paket telah dibuat dan menunggu untuk diproses',
+            'updated_by' => Auth::id(),
+            'tracked_at' => now(),
+                ]);
+
+return response()->json([
+    'message' => 'Pengiriman berhasil dibuat',
+    'data' => $shipment
+], 201);
 
             return response()->json([
                 'message' => 'Pengiriman berhasil dibuat',
@@ -362,6 +377,30 @@ class ShipmentController extends Controller
             }
 
             $shipment->update($data);
+            if (isset($data['status']) && $shipment->wasChanged('status')) {
+            $statusMessages = [
+        'pending' => 'Paket menunggu untuk diambil',
+        'picked_up' => 'Paket telah diambil kurir',
+        'in_transit' => 'Paket sedang dalam perjalanan',
+        'arrived_at_hub' => 'Paket tiba di hub sortir',
+        'out_for_delivery' => 'Paket sedang diantar ke tujuan',
+        'delivered' => 'Paket telah sampai di tujuan',
+    ];
+
+        TrackingHistory::create([
+        'shipment_id' => $shipment->id,
+        'status' => $data['status'],
+        'location' => $data['receiver_city'] ?? $shipment->receiver_city,
+        'description' => $statusMessages[$data['status']] ?? 'Status pengiriman diperbarui',
+        'updated_by' => Auth::id(),
+        'tracked_at' => now(),
+    ]);
+}
+
+return response()->json([
+    'message' => 'Pengiriman berhasil diupdate',
+    'data' => $shipment
+], 200);
 
             return response()->json([
                 'message' => 'Pengiriman berhasil diupdate',

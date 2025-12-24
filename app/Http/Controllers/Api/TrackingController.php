@@ -31,6 +31,8 @@ class TrackingController extends Controller
                     'receiver_city' => $shipment->receiver_city,
                     'weight' => $shipment->weight,
                     'service_type' => $shipment->service_type,
+                    'item_type' => $shipment->item_type,           // ✅ TAMBAH
+                    'item_quantity' => $shipment->item_quantity,   // ✅ TAMBAH
                 ],
                 'tracking_histories' => $shipment->trackingHistories->map(function($history) {
                     return [
@@ -76,6 +78,8 @@ class TrackingController extends Controller
                     'receiver_city' => $shipment->receiver_city,
                     'weight' => $shipment->weight,
                     'service_type' => $shipment->service_type,
+                    'item_type' => $shipment->item_type,           // ✅ TAMBAH
+                    'item_quantity' => $shipment->item_quantity,   // ✅ TAMBAH
                 ],
                 'tracking_histories' => $shipment->trackingHistories->map(function($history) {
                     return [
@@ -135,6 +139,7 @@ class TrackingController extends Controller
                 'tracked_at' => $request->tracked_at ?? now(),
             ]);
 
+            // ✅ Update status shipment
             $shipment->update(['status' => $request->status]);
 
             return response()->json([
@@ -176,6 +181,7 @@ class TrackingController extends Controller
 
             $tracking->update($validator->validated());
 
+            // ✅ Update status shipment jika status berubah
             if ($request->has('status')) {
                 $tracking->shipment->update(['status' => $request->status]);
             }
