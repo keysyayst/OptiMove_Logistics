@@ -37,7 +37,6 @@
 
                     <!-- Guest Menu (Not Logged In) -->
                     <div id="guest-menu" class="flex items-center gap-3">
-                        <a href="#about" class="text-gray-300 hover:text-white transition">Company</a>
                         <a href="{{ route('register.page') }}" class="text-gray-300 hover:text-white px-4 py-2 rounded-lg hover:bg-white/5 transition">
                             Register
                         </a>
@@ -92,7 +91,6 @@
 
                 <!-- Mobile Guest Menu -->
                 <div id="mobile-guest-menu" class="space-y-3 pt-3 border-t border-gray-800">
-                    <a href="#about" class="block text-gray-300 hover:text-white py-2">Company</a>
                     <a href="{{ route('register.page') }}" class="block text-center bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition">
                         Register
                     </a>
@@ -286,151 +284,197 @@
     </footer>
 
     <script>
-        console.log('🚀 Landing page loaded');
+    console.log('🚀 Landing page loaded');
+
+    const token = localStorage.getItem('optimove_token');
+    console.log('Token found:', token ? 'YES' : 'NO');
+
+    const guestMenu = document.getElementById('guest-menu');
+    const userMenu = document.getElementById('user-menu');
+    const mobileGuestMenu = document.getElementById('mobile-guest-menu');
+    const mobileUserMenu = document.getElementById('mobile-user-menu');
+    const ctaPrimary = document.getElementById('cta-primary');
+    const ctaPrimaryText = document.getElementById('cta-primary-text');
+
+    async function checkAuth() {
+        if (!token) {
+            console.log('❌ No token - showing guest menu');
+            showGuestMenu();
+            return;
+        }
+
+        console.log('🔍 Validating token...');
+
+        try {
+            const response = await fetch('/api/auth/me', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            console.log('API Response status:', response.status);
+
+            if (response.ok) {
+                const userData = await response.json();
+                console.log('✅ User data:', userData);
+
+                if (userData && userData.name) {
+                    showUserMenu(userData.name);
+                } else {
+                    console.log('⚠️ Invalid user data');
+                    showGuestMenu();
+                }
+            } else {
+                console.log('❌ API returned error:', response.status);
+                localStorage.removeItem('optimove_token');
+                showGuestMenu();
+            }
+        } catch (error) {
+            console.error('❌ Auth check failed:', error);
+            localStorage.removeItem('optimove_token');
+            showGuestMenu();
+        }
+    }
+
+    function showGuestMenu() {
+        console.log('📋 Showing guest menu');
+        guestMenu.classList.remove('hidden');
+        guestMenu.classList.add('flex');
+        userMenu.classList.add('hidden');
+        userMenu.classList.remove('flex');
+        mobileGuestMenu.classList.remove('hidden');
+        mobileUserMenu.classList.add('hidden');
+
+        // CTA ke login
+        ctaPrimary.href = '{{ route('login.page') }}';
+        ctaPrimaryText.textContent = 'Request shipment now';
+    }
+
+    function showUserMenu(userName) {
+        console.log('👤 Showing user menu for:', userName);
+        guestMenu.classList.add('hidden');
+        guestMenu.classList.remove('flex');
+        userMenu.classList.remove('hidden');
+        userMenu.classList.add('flex');
+        mobileGuestMenu.classList.add('hidden');
+        mobileUserMenu.classList.remove('hidden');
+
+        document.getElementById('user-name-display').textContent = userName;
+        document.getElementById('mobile-user-name').textContent = userName;
+
+        // CTA ke dashboard
+        ctaPrimary.href = '{{ route('dashboard') }}';
+        ctaPrimaryText.textContent = 'Buat Pengiriman';
+    }
+
+    function toggleUserDropdown() {
+        const dropdown = document.getElementById('user-dropdown');
+        dropdown.classList.toggle('hidden');
+    }
+
+    window.addEventListener('click', function(e) {
+        if (!e.target.closest('[onclick="toggleUserDropdown()"]')) {
+            const dropdown = document.getElementById('user-dropdown');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                dropdown.classList.add('hidden');
+            }
+        }
+    });
+
+    async function handleLogout(event) {
+        event.preventDefault();
+        console.log('🚪 Logging out...');
 
         const token = localStorage.getItem('optimove_token');
-        console.log('Token found:', token ? 'YES' : 'NO');
-
-        const guestMenu = document.getElementById('guest-menu');
-        const userMenu = document.getElementById('user-menu');
-        const mobileGuestMenu = document.getElementById('mobile-guest-menu');
-        const mobileUserMenu = document.getElementById('mobile-user-menu');
-        const ctaPrimary = document.getElementById('cta-primary');
-        const ctaPrimaryText = document.getElementById('cta-primary-text');
-
-        async function checkAuth() {
-            if (!token) {
-                console.log('❌ No token - showing guest menu');
-                showGuestMenu();
-                return;
-            }
-
-            console.log('🔍 Validating token...');
-
+        if (token) {
             try {
-                const response = await fetch('/api/auth/me', {
-                    method: 'GET',
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'application/json'
                     }
                 });
-
-                console.log('API Response status:', response.status);
-
-                if (response.ok) {
-                    const userData = await response.json();
-                    console.log('✅ User data:', userData);
-
-                    if (userData && userData.name) {
-                        showUserMenu(userData.name);
-                    } else {
-                        console.log('⚠️ Invalid user data');
-                        showGuestMenu();
-                    }
-                } else {
-                    console.log('❌ API returned error:', response.status);
-                    localStorage.removeItem('optimove_token');
-                    showGuestMenu();
-                }
             } catch (error) {
-                console.error('❌ Auth check failed:', error);
-                localStorage.removeItem('optimove_token');
-                showGuestMenu();
+                console.error('Logout API error:', error);
             }
         }
 
-        function showGuestMenu() {
-            console.log('📋 Showing guest menu');
-            guestMenu.classList.remove('hidden');
-            guestMenu.classList.add('flex');
-            userMenu.classList.add('hidden');
-            userMenu.classList.remove('flex');
-            mobileGuestMenu.classList.remove('hidden');
-            mobileUserMenu.classList.add('hidden');
+        localStorage.removeItem('optimove_token');
+        console.log('✅ Token removed, reloading...');
+        window.location.reload();
+    }
 
-            // CTA ke login
-            ctaPrimary.href = '{{ route('login.page') }}';
-            ctaPrimaryText.textContent = 'Request shipment now';
-        }
+    function toggleMobileMenu() {
+        const menu = document.getElementById('mobile-menu');
+        menu.classList.toggle('hidden');
+    }
 
-        function showUserMenu(userName) {
-            console.log('👤 Showing user menu for:', userName);
-            guestMenu.classList.add('hidden');
-            guestMenu.classList.remove('flex');
-            userMenu.classList.remove('hidden');
-            userMenu.classList.add('flex');
-            mobileGuestMenu.classList.add('hidden');
-            mobileUserMenu.classList.remove('hidden');
+    // ============================================
+    // SCROLL SPY - Active Menu Indicator
+    // ============================================
 
-            document.getElementById('user-name-display').textContent = userName;
-            document.getElementById('mobile-user-name').textContent = userName;
+    const navLinks = document.querySelectorAll('nav a[href^="#"]');
+    const sections = document.querySelectorAll('section[id]');
 
-            // CTA ke dashboard
-            ctaPrimary.href = '{{ route('dashboard') }}';
-            ctaPrimaryText.textContent = 'Buat Pengiriman';
-        }
+    // Function to update active menu
+    function updateActiveMenu() {
+        let current = 'start'; // default
 
-        function toggleUserDropdown() {
-            const dropdown = document.getElementById('user-dropdown');
-            dropdown.classList.toggle('hidden');
-        }
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.clientHeight;
 
-        window.addEventListener('click', function(e) {
-            if (!e.target.closest('[onclick="toggleUserDropdown()"]')) {
-                const dropdown = document.getElementById('user-dropdown');
-                if (dropdown && !dropdown.classList.contains('hidden')) {
-                    dropdown.classList.add('hidden');
-                }
+            if (window.scrollY >= (sectionTop - 100)) {
+                current = section.getAttribute('id');
             }
         });
 
-        async function handleLogout(event) {
-            event.preventDefault();
-            console.log('🚪 Logging out...');
-
-            const token = localStorage.getItem('optimove_token');
-            if (token) {
-                try {
-                    await fetch('/api/auth/logout', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Accept': 'application/json'
-                        }
-                    });
-                } catch (error) {
-                    console.error('Logout API error:', error);
-                }
-            }
-
-            localStorage.removeItem('optimove_token');
-            console.log('✅ Token removed, reloading...');
-            window.location.reload();
-        }
-
-        function toggleMobileMenu() {
-            const menu = document.getElementById('mobile-menu');
-            menu.classList.toggle('hidden');
-        }
-
-        // Smooth scroll
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                const href = this.getAttribute('href');
-                if (href !== '#') {
-                    e.preventDefault();
-                    const target = document.querySelector(href);
-                    if (target) {
-                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        document.getElementById('mobile-menu')?.classList.add('hidden');
-                    }
-                }
-            });
+        // Remove all active states
+        navLinks.forEach(link => {
+            link.classList.remove('border-b-2', 'border-orange-500', 'pb-1');
         });
 
-        // Initialize
-        checkAuth();
-    </script>
+        // Add active state to current section
+        navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href === `#${current}`) {
+                link.classList.add('border-b-2', 'border-orange-500', 'pb-1');
+            }
+        });
+    }
+
+    // Listen to scroll
+    window.addEventListener('scroll', updateActiveMenu);
+
+    // Update on page load
+    updateActiveMenu();
+
+    // Smooth scroll dengan update active state
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+            if (href !== '#') {
+                e.preventDefault();
+                const target = document.querySelector(href);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    document.getElementById('mobile-menu')?.classList.add('hidden');
+
+                    // Update active state immediately
+                    setTimeout(() => {
+                        updateActiveMenu();
+                    }, 100);
+                }
+            }
+        });
+    });
+
+    // Initialize
+    checkAuth();
+</script>
+
 </body>
 </html>
