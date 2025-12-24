@@ -142,7 +142,7 @@ class ShipmentController extends Controller
                 'service_type' => 'required|in:regular,express,cargo',
                 'use_insurance' => 'nullable|boolean',
                 'shipping_cost' => 'nullable|numeric|min:0|max:99999999.99',
-                'status' => 'nullable|in:pending,shipping,delivered',
+                'status' => 'nullable|in:pending,picked_up,in_transit,arrived_at_hub,out_for_delivery,delivered',
             ]);
 
             if ($basicValidator->fails()) {
@@ -287,7 +287,7 @@ class ShipmentController extends Controller
                 'service_type' => 'sometimes|in:regular,express,cargo',
                 'use_insurance' => 'sometimes|boolean',
                 'shipping_cost' => 'sometimes|numeric|min:0|max:99999999.99',
-                'status' => 'sometimes|in:pending,shipping,delivered',
+                'status' => 'sometimes|in:pending,picked_up,in_transit,arrived_at_hub,out_for_delivery,delivered',
             ]);
 
             if ($basicValidator->fails()) {
