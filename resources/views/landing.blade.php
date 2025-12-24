@@ -124,13 +124,12 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
             <div class="max-w-3xl">
                 <h1 class="text-5xl md:text-7xl font-bold leading-tight mb-6">
-                    Heavy & Oversized<br>
-                    <span class="text-orange-500">Logistics</span> for Your Cargo
+                    Smart Reliable<br>
+                    <span class="text-orange-500">Logistics</span> for Every Move
                 </h1>
                 <p class="text-xl text-gray-300 mb-8 leading-relaxed">
-                    Optimove mengirimkan alat berat, kontainer proyek, dan barang sensitif
-                    ke seluruh Indonesia dengan armada khusus dan driver berpengalaman.
-                    Aman, presisi, dan tepat waktu.
+                    Optimove menghadirkan layanan pengiriman barang ke seluruh Indonesia mulai dari paket bisnis, kebutuhan industri, hingga kargo skala besar.
+                    Didukung armada andal, sistem tracking real-time, dan tim berpengalaman untuk pengiriman yang aman, efisien, dan tepat waktu.
                 </p>
                 <div class="flex flex-wrap gap-4">
                     <!-- CTA Dinamis: ke Dashboard jika login, ke Login jika belum -->
@@ -153,7 +152,7 @@
             <div class="text-center mb-16">
                 <h2 class="text-4xl md:text-5xl font-bold mb-4">Layanan Kami</h2>
                 <p class="text-gray-400 text-lg max-w-2xl mx-auto">
-                    Solusi logistik terpadu untuk berbagai kebutuhan pengiriman barang berat dan oversize
+                    Solusi logistik terpadu untuk berbagai jenis kebutuhan pengiriman, dari skala kecil hingga besar
                 </p>
             </div>
 
@@ -162,9 +161,9 @@
                     <div class="bg-orange-600 rounded-full w-16 h-16 flex items-center justify-center mb-6">
                         <i class="fas fa-truck-monster text-3xl"></i>
                     </div>
-                    <h3 class="text-2xl font-bold mb-4">Heavy Equipment</h3>
+                    <h3 class="text-2xl font-bold mb-4">General Cargo</h3>
                     <p class="text-gray-400 leading-relaxed">
-                        Pengiriman alat berat seperti excavator, bulldozer, dan crane dengan trailer khusus dan izin lengkap.
+                        Pengiriman alat berat seperti excavator, bulldozer, dan crane dengan trailer khusus dan izin lengkap.Pengiriman barang umum, produk retail, dan kebutuhan bisnis dengan penanganan aman dan terstandar.
                     </p>
                 </div>
 
@@ -172,9 +171,9 @@
                     <div class="bg-blue-600 rounded-full w-16 h-16 flex items-center justify-center mb-6">
                         <i class="fas fa-industry text-3xl"></i>
                     </div>
-                    <h3 class="text-2xl font-bold mb-4">Project Cargo</h3>
+                    <h3 class="text-2xl font-bold mb-4">Large & Special Cargo</h3>
                     <p class="text-gray-400 leading-relaxed">
-                        Kontainer proyek, modul bangunan, dan peralatan industri berukuran besar dengan handling khusus.
+                        Pengiriman barang berukuran besar, berat, atau membutuhkan perlakuan khusus dengan armada yang sesuai.
                     </p>
                 </div>
 
@@ -184,7 +183,7 @@
                     </div>
                     <h3 class="text-2xl font-bold mb-4">Express Delivery</h3>
                     <p class="text-gray-400 leading-relaxed">
-                        Layanan cepat untuk barang sensitif dengan monitoring 24/7 dan asuransi penuh.
+                        Layanan pengiriman cepat untuk barang prioritas dengan monitoring real-time.
                     </p>
                 </div>
             </div>
@@ -205,8 +204,8 @@
                                 </div>
                             </div>
                             <div>
-                                <h4 class="font-bold text-xl mb-2">Armada Khusus</h4>
-                                <p class="text-gray-400">Trailer lowbed, flatbed, dan truk khusus untuk berbagai jenis kargo</p>
+                                <h4 class="font-bold text-xl mb-2">Armada Fleksibel</h4>
+                                <p class="text-gray-400">Beragam jenis kendaraan siap menyesuaikan kebutuhan pengiriman Anda.</p>
                             </div>
                         </div>
                         <div class="flex gap-4">
@@ -216,8 +215,8 @@
                                 </div>
                             </div>
                             <div>
-                                <h4 class="font-bold text-xl mb-2">Asuransi Penuh</h4>
-                                <p class="text-gray-400">Perlindungan komprehensif untuk setiap pengiriman</p>
+                                <h4 class="font-bold text-xl mb-2">Keamanan Terjamin</h4>
+                                <p class="text-gray-400">Setiap pengiriman dilengkapi perlindungan dan standar keamanan tinggi.</p>
                             </div>
                         </div>
                         <div class="flex gap-4">
@@ -228,7 +227,7 @@
                             </div>
                             <div>
                                 <h4 class="font-bold text-xl mb-2">Real-time Tracking</h4>
-                                <p class="text-gray-400">Pantau posisi kargo Anda kapan saja, dimana saja</p>
+                                <p class="text-gray-400">Pantau status dan posisi pengiriman Anda kapan saja dan di mana saja.</p>
                             </div>
                         </div>
                     </div>
@@ -249,14 +248,14 @@
                 <div>
                     <h3 class="text-2xl font-bold mb-4">OPTI<span class="text-orange-500">MOVE</span></h3>
                     <p class="text-gray-400 text-sm">
-                        Solusi logistik terpercaya untuk pengiriman alat berat dan kargo besar di Indonesia.
+                        Solusi logistik terpercaya untuk berbagai kebutuhan pengiriman barang di seluruh Indonesia.
                     </p>
                 </div>
                 <div>
                     <h4 class="font-bold mb-4">Layanan</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="#" class="hover:text-orange-500 transition">Heavy Equipment</a></li>
-                        <li><a href="#" class="hover:text-orange-500 transition">Project Cargo</a></li>
+                        <li><a href="#" class="hover:text-orange-500 transition">General Cargo</a></li>
+                        <li><a href="#" class="hover:text-orange-500 transition">Large & Special Cargo</a></li>
                         <li><a href="#" class="hover:text-orange-500 transition">Express Delivery</a></li>
                     </ul>
                 </div>
@@ -264,7 +263,6 @@
                     <h4 class="font-bold mb-4">Perusahaan</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
                         <li><a href="#" class="hover:text-orange-500 transition">Tentang Kami</a></li>
-                        <li><a href="#" class="hover:text-orange-500 transition">Karir</a></li>
                         <li><a href="#" class="hover:text-orange-500 transition">Kontak</a></li>
                     </ul>
                 </div>
@@ -273,7 +271,7 @@
                     <ul class="space-y-2 text-gray-400 text-sm">
                         <li><i class="fas fa-phone mr-2 text-orange-500"></i>+62 812 3456 7890</li>
                         <li><i class="fas fa-envelope mr-2 text-orange-500"></i>info@optimove.id</li>
-                        <li><i class="fas fa-map-marker-alt mr-2 text-orange-500"></i>Jakarta, Indonesia</li>
+                        <li><i class="fas fa-map-marker-alt mr-2 text-orange-500"></i>Malang, Indonesia</li>
                     </ul>
                 </div>
             </div>
