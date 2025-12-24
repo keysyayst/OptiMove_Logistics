@@ -8,22 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Tabel packages
-        Schema::create('packages', function (Blueprint $table) {
-            $table->id();
-            $table->string('tracking_code')->unique();
-            $table->string('name');
-            $table->text('description')->nullable();
-            $table->decimal('weight', 8, 2);
-            $table->integer('stock')->default(1);
-            $table->timestamps();
-        });
-
-        // Tabel shipments (lengkap)
+        // Tabel shipments
         Schema::create('shipments', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('shipment_code')->unique();
-            $table->enum('status', ['pending', 'shipping', 'delivered'])->default('pending');
+            $table->enum('status', ['pending', 'picked_up', 'in_transit', 'arrived_at_hub', 'out_for_delivery', 'delivered'])->default('pending');
             $table->decimal('shipping_cost', 10, 2)->nullable();
             $table->decimal('weight', 8, 2)->default(0);
 
@@ -57,11 +47,26 @@ return new class extends Migration
 
             $table->timestamps();
         });
+
+        // Tabel tracking_histories
+        Schema::create('tracking_histories', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('shipment_id')->constrained('shipments')->onDelete('cascade');
+            $table->enum('status', ['pending', 'picked_up', 'in_transit', 'arrived_at_hub', 'out_for_delivery', 'delivered']);
+            $table->string('location');
+            $table->text('description');
+            $table->decimal('latitude', 10, 7)->nullable();
+            $table->decimal('longitude', 10, 7)->nullable();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamp('tracked_at');
+            $table->timestamps();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('tracking_histories');
         Schema::dropIfExists('shipments');
-        Schema::dropIfExists('packages');
     }
 };

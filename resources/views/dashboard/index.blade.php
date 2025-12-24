@@ -20,6 +20,26 @@
         </div>
     </div>
 
+    {{-- STATS CARDS --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5">
+            <div class="text-xs text-blue-100 mb-1">Total Pengiriman</div>
+            <div id="stat-total" class="text-3xl font-bold">0</div>
+        </div>
+        <div class="bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-2xl p-5">
+            <div class="text-xs text-yellow-100 mb-1">Menunggu Pickup</div>
+            <div id="stat-pending" class="text-3xl font-bold">0</div>
+        </div>
+        <div class="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-5">
+            <div class="text-xs text-purple-100 mb-1">Dalam Perjalanan</div>
+            <div id="stat-transit" class="text-3xl font-bold">0</div>
+        </div>
+        <div class="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-5">
+            <div class="text-xs text-green-100 mb-1">Terkirim</div>
+            <div id="stat-delivered" class="text-3xl font-bold">0</div>
+        </div>
+    </div>
+
     {{-- TOOLBAR --}}
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-lg font-semibold">Data Pengiriman</h2>
@@ -52,6 +72,7 @@
 
             <form id="shipment-form" class="space-y-4">
                 <input type="hidden" name="id" />
+                <input type="hidden" name="uuid" />
 
                 {{-- KODE --}}
                 <div>
@@ -145,8 +166,11 @@
                         <label class="text-xs text-gray-300">Status</label>
                         <select name="status" required
                                 class="mt-1 w-full rounded-lg bg-black/40 border border-gray-700 px-3 py-2 text-sm">
-                            <option value="pending">Pending</option>
-                            <option value="shipping">Dalam Pengiriman</option>
+                            <option value="pending">Menunggu Pickup</option>
+                            <option value="picked_up">Sudah Diambil</option>
+                            <option value="in_transit">Dalam Perjalanan</option>
+                            <option value="arrived_at_hub">Tiba di Hub</option>
+                            <option value="out_for_delivery">Siap Diantar</option>
                             <option value="delivered">Terkirim</option>
                         </select>
                     </div>
@@ -179,7 +203,7 @@
                     </div>
                 </div>
 
-                {{-- DIMENSI PAKET (PANJANG, LEBAR, TINGGI) --}}
+                {{-- DIMENSI PAKET --}}
                 <div class="grid md:grid-cols-3 gap-4 mt-2">
                     <div>
                         <label class="text-xs text-gray-300">Panjang (cm)</label>
@@ -217,7 +241,7 @@
                     </div>
                 </div>
 
-                {{-- TOTAL HARGA (CALCULATED) --}}
+                {{-- TOTAL HARGA --}}
                 <div class="bg-black/40 border border-gray-700 rounded-lg p-4 mt-4">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-sm text-gray-300">Total Harga Pengiriman</span>
@@ -225,7 +249,6 @@
                     </div>
                     <input type="hidden" name="shipping_cost" id="shipping_cost" value="0">
 
-                    {{-- Breakdown biaya --}}
                     <div class="mt-3 pt-3 border-t border-gray-700 text-[11px] text-gray-400 space-y-1">
                         <div class="flex justify-between">
                             <span>Biaya Berat/Volume:</span>
@@ -286,10 +309,6 @@ const shipmentCodeInput = document.getElementById('shipment_code');
 const itemTypeSelect = document.getElementById('item_type');
 const itemTypeOtherInput = document.getElementById('item_type_other');
 
-console.log('📋 Form element:', form ? 'Found' : 'NOT FOUND');
-console.log('📋 Modal element:', modal ? 'Found' : 'NOT FOUND');
-
-// KONSTANTA TARIF
 const TARIF_PER_KG = 5000;
 const TARIF_PER_KM = 1500;
 const DIVIDER_VOLUMETRIK = 5000;
@@ -297,10 +316,26 @@ const DIVIDER_VOLUMETRIK = 5000;
 let editingId = null;
 let shipmentsData = [];
 
-// ============================================
-// ESTIMASI JARAK MENGGUNAKAN OPENSTREETMAP
-// ============================================
+// STATUS LABELS
+const statusLabels = {
+    'pending': 'Menunggu Pickup',
+    'picked_up': 'Sudah Diambil',
+    'in_transit': 'Dalam Perjalanan',
+    'arrived_at_hub': 'Tiba di Hub',
+    'out_for_delivery': 'Siap Diantar',
+    'delivered': 'Terkirim'
+};
 
+const statusColors = {
+    'pending': 'bg-yellow-600',
+    'picked_up': 'bg-blue-600',
+    'in_transit': 'bg-purple-600',
+    'arrived_at_hub': 'bg-orange-600',
+    'out_for_delivery': 'bg-indigo-600',
+    'delivered': 'bg-green-600'
+};
+
+// GEOCODING & DISTANCE
 const cityCoordinatesCache = {};
 
 async function geocodeCity(cityName) {
@@ -310,13 +345,9 @@ async function geocodeCity(cityName) {
 
     try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)},Indonesia&format=json&limit=1`;
-
         const res = await fetch(url, {
-            headers: {
-                'User-Agent': 'Optimove-App/1.0'
-            }
+            headers: { 'User-Agent': 'Optimove-App/1.0' }
         });
-
         const data = await res.json();
 
         if (data.length > 0) {
@@ -324,11 +355,9 @@ async function geocodeCity(cityName) {
                 lat: parseFloat(data[0].lat),
                 lng: parseFloat(data[0].lon)
             };
-
             cityCoordinatesCache[cityName] = coords;
             return coords;
         }
-
         return null;
     } catch (e) {
         console.error('Geocode error:', e);
@@ -339,15 +368,12 @@ async function geocodeCity(cityName) {
 async function getDistanceFromOSRM(coordFrom, coordTo) {
     try {
         const url = `https://router.project-osrm.org/route/v1/driving/${coordFrom.lng},${coordFrom.lat};${coordTo.lng},${coordTo.lat}?overview=false`;
-
         const res = await fetch(url);
         const data = await res.json();
 
         if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-            const distanceInMeters = data.routes[0].distance;
-            return Math.round(distanceInMeters / 1000);
+            return Math.round(data.routes[0].distance / 1000);
         }
-
         return null;
     } catch (e) {
         console.error('OSRM error:', e);
@@ -365,9 +391,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
               Math.sin(dLon/2) * Math.sin(dLon/2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
-
-    return Math.round(distance);
+    return Math.round(R * c);
 }
 
 async function estimateDistance(cityFrom, cityTo) {
@@ -379,37 +403,25 @@ async function estimateDistance(cityFrom, cityTo) {
     if (from.toLowerCase() === to.toLowerCase()) return 10;
 
     const distanceInput = document.getElementById('estimated-distance');
-    if (distanceInput) {
-        distanceInput.value = 'Menghitung...';
-    }
+    if (distanceInput) distanceInput.value = 'Menghitung...';
 
     try {
         const coordFrom = await geocodeCity(from);
         const coordTo = await geocodeCity(to);
 
-        if (!coordFrom || !coordTo) {
-            console.warn('Geocoding gagal, gunakan fallback');
-            return 200;
-        }
+        if (!coordFrom || !coordTo) return 200;
 
         const distance = await getDistanceFromOSRM(coordFrom, coordTo);
-
-        if (distance) {
-            return distance;
-        }
+        if (distance) return distance;
 
         return haversineDistance(coordFrom.lat, coordFrom.lng, coordTo.lat, coordTo.lng);
-
     } catch (e) {
         console.error('Error estimating distance:', e);
         return 200;
     }
 }
 
-// ============================================
-// PERHITUNGAN BIAYA PENGIRIMAN
-// ============================================
-
+// CALCULATE SHIPPING COST
 async function calculateShippingCost() {
     const weight = Number(form.weight.value) || 0;
     const length = Number(form.length_cm.value) || 0;
@@ -435,30 +447,20 @@ async function calculateShippingCost() {
         'Rp ' + Math.round(costWeight).toLocaleString('id-ID');
     document.getElementById('cost-distance').textContent =
         'Rp ' + Math.round(costDistance).toLocaleString('id-ID');
-    document.getElementById('estimated-distance').value =
-        distance + ' km';
+    document.getElementById('estimated-distance').value = distance + ' km';
 
     return totalCost;
 }
 
-const weightInput = form.querySelector('[name="weight"]');
-const lengthInput = form.querySelector('[name="length_cm"]');
-const widthInput = form.querySelector('[name="width_cm"]');
-const heightInput = form.querySelector('[name="height_cm"]');
-const senderCityInput = form.querySelector('[name="sender_city"]');
-const receiverCityInput = form.querySelector('[name="receiver_city"]');
-
-[weightInput, lengthInput, widthInput, heightInput, senderCityInput, receiverCityInput].forEach(input => {
+// AUTO CALCULATE ON INPUT CHANGE
+[form.weight, form.length_cm, form.width_cm, form.height_cm, form.sender_city, form.receiver_city].forEach(input => {
     if (input) {
-        input.addEventListener('input', async () => {
-            await calculateShippingCost();
-        });
-        input.addEventListener('change', async () => {
-            await calculateShippingCost();
-        });
+        input.addEventListener('input', calculateShippingCost);
+        input.addEventListener('change', calculateShippingCost);
     }
 });
 
+// ITEM TYPE TOGGLE
 if (itemTypeSelect && itemTypeOtherInput) {
     itemTypeSelect.addEventListener('change', () => {
         if (itemTypeSelect.value === 'lainnya') {
@@ -472,19 +474,16 @@ if (itemTypeSelect && itemTypeOtherInput) {
     });
 }
 
+// GENERATE CODE
 async function generateShipmentCode() {
     try {
         shipmentCodeInput.value = 'Sedang generate...';
 
-        // ✅ TAMBAHKAN TOKEN
         const res = await fetch('/api/shipments/generate-code', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (!res.ok) {
-            console.error('Generate code gagal:', res.status);
             shipmentCodeInput.value = 'GAGAL-GENERATE';
             return null;
         }
@@ -499,7 +498,7 @@ async function generateShipmentCode() {
     }
 }
 
-
+// OPEN MODAL
 async function openModal(mode, data = null) {
     console.log('📂 Opening modal:', mode);
 
@@ -509,17 +508,16 @@ async function openModal(mode, data = null) {
 
     if (data) {
         form.id.value = data.id;
+        form.uuid.value = data.uuid || '';
         shipmentCodeInput.value = data.shipment_code || '';
 
         form.sender_name.value = data.sender_name || '';
         form.receiver_name.value = data.receiver_name || '';
-
         form.sender_address.value = data.sender_address || '';
         form.sender_city.value = data.sender_city || '';
         form.sender_province.value = data.sender_province || '';
         form.sender_postal_code.value = data.sender_postal_code || '';
         form.sender_phone.value = data.sender_phone || '';
-
         form.receiver_address.value = data.receiver_address || '';
         form.receiver_city.value = data.receiver_city || '';
         form.receiver_province.value = data.receiver_province || '';
@@ -548,6 +546,7 @@ async function openModal(mode, data = null) {
     } else {
         form.reset();
         form.id.value = '';
+        form.uuid.value = '';
         await generateShipmentCode();
         form.status.value = 'pending';
         form.item_type.value = 'dokumen';
@@ -562,11 +561,11 @@ async function openModal(mode, data = null) {
 }
 
 function closeModal() {
-    console.log('❌ Closing modal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 }
 
+// LOAD USER
 async function loadMe() {
     try {
         const res = await fetch('/api/auth/me', {
@@ -580,11 +579,20 @@ async function loadMe() {
     }
 }
 
+// RENDER SHIPMENTS
 function renderShipments(list) {
     console.log('🎨 Rendering shipments:', list.length);
 
     shipmentsContainer.innerHTML = '';
     shipmentsData = list;
+
+    // UPDATE STATS
+    document.getElementById('stat-total').textContent = list.length;
+    document.getElementById('stat-pending').textContent = list.filter(s => s.status === 'pending').length;
+    document.getElementById('stat-transit').textContent = list.filter(s =>
+        ['picked_up', 'in_transit', 'arrived_at_hub', 'out_for_delivery'].includes(s.status)
+    ).length;
+    document.getElementById('stat-delivered').textContent = list.filter(s => s.status === 'delivered').length;
 
     if (!list || !list.length) {
         emptyMsg.classList.remove('hidden');
@@ -620,8 +628,8 @@ function renderShipments(list) {
                 <span class="text-base font-bold text-orange-400">Rp ${Number(item.shipping_cost || 0).toLocaleString('id-ID')}</span>
             </div>
             <div class="flex justify-between items-center mt-2">
-                <span class="text-xs px-2 py-1 rounded-full bg-orange-600/20 text-orange-300 capitalize">
-                    ${item.status || 'pending'}
+                <span class="text-xs px-2 py-1 rounded-full ${statusColors[item.status]} text-white">
+                    ${statusLabels[item.status] || item.status}
                 </span>
             </div>
             <div class="flex gap-2 mt-3">
@@ -631,6 +639,9 @@ function renderShipments(list) {
                 <button data-id="${item.id}" class="btn-delete flex-1 rounded-full bg-red-600 hover:bg-red-500 px-2 py-1 text-xs">
                     Hapus
                 </button>
+                <a href="/tracking/${item.uuid}" class="flex-1 text-center rounded-full bg-purple-600 hover:bg-purple-500 px-2 py-1 text-xs">
+                    Tracking
+                </a>
             </div>
         `;
 
@@ -650,6 +661,7 @@ function renderShipments(list) {
     });
 }
 
+// LOAD SHIPMENTS
 async function loadShipments() {
     console.log('🔄 Loading shipments...');
 
@@ -657,8 +669,6 @@ async function loadShipments() {
         const res = await fetch('/api/shipments', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        console.log('📡 Load shipments response:', res.status);
 
         if (res.status === 401) {
             localStorage.removeItem('optimove_token');
@@ -682,13 +692,9 @@ async function loadShipments() {
     }
 }
 
-// ============================================
-// FORM SUBMIT EVENT LISTENER
-// ============================================
-
+// FORM SUBMIT
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
     console.log('🔥 FORM SUBMIT TRIGGERED!');
 
     formError.textContent = '';
@@ -699,19 +705,16 @@ form.addEventListener('submit', async (e) => {
         status: form.status.value,
         weight: Number(form.weight.value),
         shipping_cost: Number(form.shipping_cost.value),
-
         sender_address: form.sender_address.value,
         sender_city: form.sender_city.value,
         sender_province: form.sender_province.value,
         sender_postal_code: form.sender_postal_code.value,
         sender_phone: form.sender_phone.value,
-
         receiver_address: form.receiver_address.value,
         receiver_city: form.receiver_city.value,
         receiver_province: form.receiver_province.value,
         receiver_postal_code: form.receiver_postal_code.value,
         receiver_phone: form.receiver_phone.value,
-
         item_type: form.item_type.value === 'lainnya'
             ? (form.item_type_other.value || 'lainnya')
             : form.item_type.value,
@@ -722,18 +725,11 @@ form.addEventListener('submit', async (e) => {
         service_type: form.service_type.value,
     };
 
-    console.log('📦 Payload:', payload);
-
     const isEdit = !!editingId;
     const url = isEdit ? `/api/shipments/${editingId}` : '/api/shipments';
     const method = isEdit ? 'PUT' : 'POST';
 
-    console.log('🌐 Method:', method);
-    console.log('🌐 URL:', url);
-
     try {
-        console.log('🚀 Sending request...');
-
         const res = await fetch(url, {
             method,
             headers: {
@@ -742,8 +738,6 @@ form.addEventListener('submit', async (e) => {
             },
             body: JSON.stringify(payload),
         });
-
-        console.log('📡 Response status:', res.status);
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -758,24 +752,15 @@ form.addEventListener('submit', async (e) => {
         closeModal();
         await loadShipments();
 
-        console.log('✅ Data berhasil disimpan dan list di-refresh');
-
     } catch (err) {
         console.error('❌ Network error:', err);
         formError.textContent = 'Terjadi kesalahan jaringan.';
     }
 });
 
-console.log('Event listener form submit sudah dipasang');
-
-// ============================================
 // DELETE
-// ============================================
-
 async function handleDelete(id) {
     if (!confirm('Yakin ingin menghapus pengiriman ini?')) return;
-
-    console.log('🗑️ Deleting shipment:', id);
 
     try {
         const res = await fetch(`/api/shipments/${id}`, {
@@ -788,7 +773,6 @@ async function handleDelete(id) {
             return;
         }
 
-        console.log('Deleted successfully');
         await loadShipments();
     } catch (e) {
         console.error('Delete error:', e);
@@ -796,10 +780,7 @@ async function handleDelete(id) {
     }
 }
 
-// ============================================
 // LOGOUT
-// ============================================
-
 document.getElementById('logout-btn').addEventListener('click', async () => {
     try {
         await fetch('/api/auth/logout', {
@@ -814,22 +795,12 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
     }
 });
 
-// ============================================
-// EVENT OPEN/CLOSE MODAL
-// ============================================
-
-openCreateBtn.addEventListener('click', () => {
-    console.log('Tombol Buat Pengiriman diklik');
-    openModal('create');
-});
-
+// MODAL BUTTONS
+openCreateBtn.addEventListener('click', () => openModal('create'));
 closeModalBtn.addEventListener('click', closeModal);
 cancelModalBtn.addEventListener('click', closeModal);
 
-// ============================================
 // INIT
-// ============================================
-
 console.log('Initializing...');
 loadMe();
 loadShipments();
