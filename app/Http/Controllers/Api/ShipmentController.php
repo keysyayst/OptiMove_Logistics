@@ -49,50 +49,88 @@ class ShipmentController extends Controller
     }
 
     /**
+     * Validasi manual untuk nama (hanya huruf dan spasi)
+     */
+    private function validateName($name, $fieldName)
+    {
+        if (empty($name)) {
+            return "$fieldName wajib diisi";
+        }
+
+        if (strlen($name) < 3) {
+            return "$fieldName minimal 3 karakter";
+        }
+
+        if (strlen($name) > 100) {
+            return "$fieldName maksimal 100 karakter";
+        }
+
+        // Cek hanya huruf, spasi, dan titik
+        if (!ctype_alpha(str_replace([' ', '.'], '', $name))) {
+            return "$fieldName hanya boleh berisi huruf dan spasi";
+        }
+
+        return null;
+    }
+
+    /**
+     * Validasi manual untuk kode pos (5 digit)
+     */
+    private function validatePostalCode($code, $fieldName)
+    {
+        if (empty($code)) {
+            return "$fieldName wajib diisi";
+        }
+
+        if (!ctype_digit($code) || strlen($code) != 5) {
+            return "$fieldName harus 5 digit angka";
+        }
+
+        return null;
+    }
+
+    /**
+     * Validasi manual untuk nomor telepon Indonesia
+     */
+    private function validatePhone($phone, $fieldName)
+    {
+        if (empty($phone)) {
+            return "$fieldName wajib diisi";
+        }
+
+        // Bersihkan dari karakter non-digit kecuali +
+        $cleanPhone = preg_replace('/[^0-9+]/', '', $phone);
+
+        // Cek format Indonesia
+        if (!preg_match('/^(\+62|62|0)[0-9]{9,12}$/', $cleanPhone)) {
+            return "$fieldName tidak valid (contoh: 08123456789)";
+        }
+
+        return null;
+    }
+
+    /**
      * Create new shipment
      */
     public function store(Request $request)
     {
         try {
-            // VALIDASI YANG DIPERBAIKI - lebih ketat
-            $validator = Validator::make($request->all(), [
-                // Data Pengirim - REQUIRED dengan format ketat
-                'sender_name' => [
-                    'required',
-                    'string',
-                    'min:3',
-                    'max:100',
-                    'regex:/^[a-zA-Z\s.]+$/' // hanya huruf, spasi, dan titik
-                ],
+            // Validasi dasar Laravel (tanpa regex rumit)
+            $basicValidator = Validator::make($request->all(), [
+                'sender_name' => 'required|string|min:3|max:100',
                 'sender_address' => 'required|string|min:10|max:500',
                 'sender_city' => 'required|string|min:3|max:100',
                 'sender_province' => 'required|string|min:3|max:100',
-                'sender_postal_code' => 'required|string|regex:/^[0-9]{5}$/',
-                'sender_phone' => [
-                    'required',
-                    'string',
-                    'regex:/^(\+62|62|0)[0-9]{9,12}$/'
-                ],
+                'sender_postal_code' => 'required|string|size:5',
+                'sender_phone' => 'required|string',
 
-                // Data Penerima - REQUIRED dengan format ketat
-                'receiver_name' => [
-                    'required',
-                    'string',
-                    'min:3',
-                    'max:100',
-                    'regex:/^[a-zA-Z\s.]+$/'
-                ],
+                'receiver_name' => 'required|string|min:3|max:100',
                 'receiver_address' => 'required|string|min:10|max:500',
                 'receiver_city' => 'required|string|min:3|max:100',
                 'receiver_province' => 'required|string|min:3|max:100',
-                'receiver_postal_code' => 'required|string|regex:/^[0-9]{5}$/',
-                'receiver_phone' => [
-                    'required',
-                    'string',
-                    'regex:/^(\+62|62|0)[0-9]{9,12}$/'
-                ],
+                'receiver_postal_code' => 'required|string|size:5',
+                'receiver_phone' => 'required|string',
 
-                // Rincian Barang
                 'weight' => 'required|numeric|min:0.01|max:999999.99',
                 'item_type' => 'required|string|min:3|max:100',
                 'item_quantity' => 'required|integer|min:1|max:10000',
@@ -101,59 +139,56 @@ class ShipmentController extends Controller
                 'height_cm' => 'nullable|numeric|min:0|max:99999.99',
                 'item_value' => 'nullable|numeric|min:0|max:9999999999.99',
 
-                // Jenis Layanan
                 'service_type' => 'required|in:regular,express,cargo',
                 'use_insurance' => 'nullable|boolean',
                 'shipping_cost' => 'nullable|numeric|min:0|max:99999999.99',
                 'status' => 'nullable|in:pending,shipping,delivered',
-            ], [
-                // Pesan error custom
-                'sender_name.required' => 'Nama pengirim wajib diisi',
-                'sender_name.min' => 'Nama pengirim minimal 3 karakter',
-                'sender_name.max' => 'Nama pengirim maksimal 100 karakter',
-                'sender_name.regex' => 'Nama pengirim hanya boleh berisi huruf dan spasi',
-
-                'sender_address.required' => 'Alamat pengirim wajib diisi',
-                'sender_address.min' => 'Alamat pengirim minimal 10 karakter',
-
-                'sender_city.required' => 'Kota pengirim wajib diisi',
-                'sender_province.required' => 'Provinsi pengirim wajib diisi',
-
-                'sender_postal_code.required' => 'Kode pos pengirim wajib diisi',
-                'sender_postal_code.regex' => 'Kode pos harus 5 digit angka',
-
-                'sender_phone.required' => 'Nomor telepon pengirim wajib diisi',
-                'sender_phone.regex' => 'Format nomor telepon tidak valid (contoh: 08123456789)',
-
-                'receiver_name.required' => 'Nama penerima wajib diisi',
-                'receiver_name.regex' => 'Nama penerima hanya boleh berisi huruf dan spasi',
-
-                'receiver_address.required' => 'Alamat penerima wajib diisi',
-                'receiver_address.min' => 'Alamat penerima minimal 10 karakter',
-
-                'receiver_city.required' => 'Kota penerima wajib diisi',
-                'receiver_province.required' => 'Provinsi penerima wajib diisi',
-
-                'receiver_postal_code.required' => 'Kode pos penerima wajib diisi',
-                'receiver_postal_code.regex' => 'Kode pos harus 5 digit angka',
-
-                'receiver_phone.required' => 'Nomor telepon penerima wajib diisi',
-                'receiver_phone.regex' => 'Format nomor telepon tidak valid',
-
-                'weight.required' => 'Berat barang wajib diisi',
-                'weight.min' => 'Berat barang minimal 0.01 kg',
-
-                'item_type.required' => 'Jenis barang wajib diisi',
-                'item_quantity.required' => 'Jumlah barang wajib diisi',
-
-                'service_type.required' => 'Jenis layanan wajib dipilih',
-                'service_type.in' => 'Jenis layanan tidak valid',
             ]);
 
-            if ($validator->fails()) {
+            if ($basicValidator->fails()) {
                 return response()->json([
                     'message' => 'Validasi gagal',
-                    'errors' => $validator->errors()
+                    'errors' => $basicValidator->errors()
+                ], 422);
+            }
+
+            // Validasi manual tambahan
+            $errors = [];
+
+            // Validasi nama pengirim
+            if ($error = $this->validateName($request->sender_name, 'Nama pengirim')) {
+                $errors['sender_name'] = [$error];
+            }
+
+            // Validasi nama penerima
+            if ($error = $this->validateName($request->receiver_name, 'Nama penerima')) {
+                $errors['receiver_name'] = [$error];
+            }
+
+            // Validasi kode pos pengirim
+            if ($error = $this->validatePostalCode($request->sender_postal_code, 'Kode pos pengirim')) {
+                $errors['sender_postal_code'] = [$error];
+            }
+
+            // Validasi kode pos penerima
+            if ($error = $this->validatePostalCode($request->receiver_postal_code, 'Kode pos penerima')) {
+                $errors['receiver_postal_code'] = [$error];
+            }
+
+            // Validasi telepon pengirim
+            if ($error = $this->validatePhone($request->sender_phone, 'Nomor telepon pengirim')) {
+                $errors['sender_phone'] = [$error];
+            }
+
+            // Validasi telepon penerima
+            if ($error = $this->validatePhone($request->receiver_phone, 'Nomor telepon penerima')) {
+                $errors['receiver_phone'] = [$error];
+            }
+
+            if (!empty($errors)) {
+                return response()->json([
+                    'message' => 'Validasi gagal',
+                    'errors' => $errors
                 ], 422);
             }
 
@@ -172,26 +207,19 @@ class ShipmentController extends Controller
 
             $shipmentCode = "SHIP-{$date}-{$newNumber}";
 
-            // Ambil data yang sudah tervalidasi
-            $data = $validator->validated();
+            // Siapkan data
+            $data = $basicValidator->validated();
             $data['shipment_code'] = $shipmentCode;
             $data['status'] = $data['status'] ?? 'pending';
             $data['service_type'] = $data['service_type'] ?? 'regular';
             $data['item_quantity'] = $data['item_quantity'] ?? 1;
             $data['use_insurance'] = $data['use_insurance'] ?? 0;
 
-            // BERSIHKAN DATA sebelum disimpan
-            // Bersihkan nama (hapus karakter aneh)
+            // Bersihkan data
             $data['sender_name'] = trim(preg_replace('/\s+/', ' ', $data['sender_name']));
             $data['receiver_name'] = trim(preg_replace('/\s+/', ' ', $data['receiver_name']));
-
-            // Bersihkan nomor telepon (hapus karakter non-digit kecuali +)
             $data['sender_phone'] = preg_replace('/[^0-9+]/', '', $data['sender_phone']);
             $data['receiver_phone'] = preg_replace('/[^0-9+]/', '', $data['receiver_phone']);
-
-            // Pastikan format angka benar
-            $data['weight'] = (float) $data['weight'];
-            $data['shipping_cost'] = isset($data['shipping_cost']) ? (float) $data['shipping_cost'] : null;
 
             // Create shipment
             $shipment = Shipment::create($data);
@@ -231,62 +259,93 @@ class ShipmentController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'sender_name' => [
-                'sometimes',
-                'string',
-                'min:3',
-                'max:100',
-                'regex:/^[a-zA-Z\s.]+$/'
-            ],
-            'receiver_name' => [
-                'sometimes',
-                'string',
-                'min:3',
-                'max:100',
-                'regex:/^[a-zA-Z\s.]+$/'
-            ],
-            'sender_address' => 'sometimes|string|min:10|max:500',
-            'sender_city' => 'sometimes|string|min:3|max:100',
-            'sender_province' => 'sometimes|string|min:3|max:100',
-            'sender_postal_code' => 'sometimes|string|regex:/^[0-9]{5}$/',
-            'sender_phone' => 'sometimes|string|regex:/^(\+62|62|0)[0-9]{9,12}$/',
-            'receiver_address' => 'sometimes|string|min:10|max:500',
-            'receiver_city' => 'sometimes|string|min:3|max:100',
-            'receiver_province' => 'sometimes|string|min:3|max:100',
-            'receiver_postal_code' => 'sometimes|string|regex:/^[0-9]{5}$/',
-            'receiver_phone' => 'sometimes|string|regex:/^(\+62|62|0)[0-9]{9,12}$/',
-            'weight' => 'sometimes|numeric|min:0.01|max:999999.99',
-            'status' => 'sometimes|in:pending,shipping,delivered',
-            'shipping_cost' => 'sometimes|numeric|min:0|max:99999999.99',
-            'item_type' => 'sometimes|string|min:3|max:100',
-            'item_quantity' => 'sometimes|integer|min:1|max:10000',
-            'service_type' => 'sometimes|in:regular,express,cargo',
-            'length_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
-            'width_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
-            'height_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
-            'item_value' => 'sometimes|nullable|numeric|min:0|max:9999999999.99',
-            'use_insurance' => 'sometimes|boolean',
-        ], [
-            'sender_name.regex' => 'Nama pengirim hanya boleh berisi huruf dan spasi',
-            'receiver_name.regex' => 'Nama penerima hanya boleh berisi huruf dan spasi',
-            'sender_postal_code.regex' => 'Kode pos harus 5 digit angka',
-            'receiver_postal_code.regex' => 'Kode pos harus 5 digit angka',
-            'sender_phone.regex' => 'Format nomor telepon tidak valid',
-            'receiver_phone.regex' => 'Format nomor telepon tidak valid',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         try {
+            // Validasi dasar Laravel (tanpa regex)
+            $basicValidator = Validator::make($request->all(), [
+                'sender_name' => 'sometimes|string|min:3|max:100',
+                'sender_address' => 'sometimes|string|min:10|max:500',
+                'sender_city' => 'sometimes|string|min:3|max:100',
+                'sender_province' => 'sometimes|string|min:3|max:100',
+                'sender_postal_code' => 'sometimes|string|size:5',
+                'sender_phone' => 'sometimes|string',
+
+                'receiver_name' => 'sometimes|string|min:3|max:100',
+                'receiver_address' => 'sometimes|string|min:10|max:500',
+                'receiver_city' => 'sometimes|string|min:3|max:100',
+                'receiver_province' => 'sometimes|string|min:3|max:100',
+                'receiver_postal_code' => 'sometimes|string|size:5',
+                'receiver_phone' => 'sometimes|string',
+
+                'weight' => 'sometimes|numeric|min:0.01|max:999999.99',
+                'item_type' => 'sometimes|string|min:3|max:100',
+                'item_quantity' => 'sometimes|integer|min:1|max:10000',
+                'length_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
+                'width_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
+                'height_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
+                'item_value' => 'sometimes|nullable|numeric|min:0|max:9999999999.99',
+
+                'service_type' => 'sometimes|in:regular,express,cargo',
+                'use_insurance' => 'sometimes|boolean',
+                'shipping_cost' => 'sometimes|numeric|min:0|max:99999999.99',
+                'status' => 'sometimes|in:pending,shipping,delivered',
+            ]);
+
+            if ($basicValidator->fails()) {
+                return response()->json([
+                    'message' => 'Validasi gagal',
+                    'errors' => $basicValidator->errors()
+                ], 422);
+            }
+
+            // Validasi manual tambahan (hanya untuk field yang dikirim)
+            $errors = [];
+
+            if ($request->has('sender_name')) {
+                if ($error = $this->validateName($request->sender_name, 'Nama pengirim')) {
+                    $errors['sender_name'] = [$error];
+                }
+            }
+
+            if ($request->has('receiver_name')) {
+                if ($error = $this->validateName($request->receiver_name, 'Nama penerima')) {
+                    $errors['receiver_name'] = [$error];
+                }
+            }
+
+            if ($request->has('sender_postal_code')) {
+                if ($error = $this->validatePostalCode($request->sender_postal_code, 'Kode pos pengirim')) {
+                    $errors['sender_postal_code'] = [$error];
+                }
+            }
+
+            if ($request->has('receiver_postal_code')) {
+                if ($error = $this->validatePostalCode($request->receiver_postal_code, 'Kode pos penerima')) {
+                    $errors['receiver_postal_code'] = [$error];
+                }
+            }
+
+            if ($request->has('sender_phone')) {
+                if ($error = $this->validatePhone($request->sender_phone, 'Nomor telepon pengirim')) {
+                    $errors['sender_phone'] = [$error];
+                }
+            }
+
+            if ($request->has('receiver_phone')) {
+                if ($error = $this->validatePhone($request->receiver_phone, 'Nomor telepon penerima')) {
+                    $errors['receiver_phone'] = [$error];
+                }
+            }
+
+            if (!empty($errors)) {
+                return response()->json([
+                    'message' => 'Validasi gagal',
+                    'errors' => $errors
+                ], 422);
+            }
+
             $shipment = Shipment::findOrFail($id);
 
-            $data = $validator->validated();
+            $data = $basicValidator->validated();
 
             // Bersihkan data jika ada
             if (isset($data['sender_name'])) {
@@ -308,7 +367,10 @@ class ShipmentController extends Controller
                 'message' => 'Pengiriman berhasil diupdate',
                 'data' => $shipment
             ], 200);
+
         } catch (\Exception $e) {
+            logger()->error('Error update shipment: ' . $e->getMessage());
+
             return response()->json([
                 'message' => 'Gagal mengupdate pengiriman',
                 'error' => $e->getMessage()
