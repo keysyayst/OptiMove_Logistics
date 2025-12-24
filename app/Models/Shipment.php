@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Shipment extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'shipment_code',
         'status',
@@ -34,9 +37,47 @@ class Shipment extends Model
     ];
 
     protected $casts = [
-        'shipping_cost' => 'decimal:2',
         'weight' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'length_cm' => 'decimal:2',
+        'width_cm' => 'decimal:2',
+        'height_cm' => 'decimal:2',
         'item_value' => 'decimal:2',
+        'item_quantity' => 'integer',
         'use_insurance' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
+
+    // Mutator untuk memastikan data bersih sebelum disimpan
+    public function setSenderNameAttribute($value)
+    {
+        $this->attributes['sender_name'] = trim(preg_replace('/\s+/', ' ', $value));
+    }
+
+    public function setReceiverNameAttribute($value)
+    {
+        $this->attributes['receiver_name'] = trim(preg_replace('/\s+/', ' ', $value));
+    }
+
+    public function setSenderPhoneAttribute($value)
+    {
+        $this->attributes['sender_phone'] = preg_replace('/[^0-9+]/', '', $value);
+    }
+
+    public function setReceiverPhoneAttribute($value)
+    {
+        $this->attributes['receiver_phone'] = preg_replace('/[^0-9+]/', '', $value);
+    }
+
+    // Accessor untuk format yang lebih baik
+    public function getFormattedShippingCostAttribute()
+    {
+        return $this->shipping_cost ? 'Rp ' . number_format($this->shipping_cost, 0, ',', '.') : 'Rp 0';
+    }
+
+    public function getFormattedWeightAttribute()
+    {
+        return $this->weight . ' kg';
+    }
 }
