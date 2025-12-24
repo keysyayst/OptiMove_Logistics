@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Shipment;
+use App\Models\TrackingHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Models\TrackingHistory;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ShipmentController extends Controller
 {
@@ -67,7 +68,6 @@ class ShipmentController extends Controller
             return "$fieldName maksimal 100 karakter";
         }
 
-        // Cek hanya huruf, spasi, dan titik
         if (!ctype_alpha(str_replace([' ', '.'], '', $name))) {
             return "$fieldName hanya boleh berisi huruf dan spasi";
         }
@@ -100,10 +100,8 @@ class ShipmentController extends Controller
             return "$fieldName wajib diisi";
         }
 
-        // Bersihkan dari karakter non-digit kecuali +
         $cleanPhone = preg_replace('/[^0-9+]/', '', $phone);
 
-        // Cek format Indonesia
         if (!preg_match('/^(\+62|62|0)[0-9]{9,12}$/', $cleanPhone)) {
             return "$fieldName tidak valid (contoh: 08123456789)";
         }
@@ -116,8 +114,14 @@ class ShipmentController extends Controller
      */
     public function store(Request $request)
     {
+        // ✅ GUNAKAN DB TRANSACTION untuk memastikan shipment & tracking dibuat bersamaan
+        DB::beginTransaction();
+
         try {
-            // Validasi dasar Laravel (tanpa regex rumit)
+            logger()->info("========== STORE SHIPMENT START ==========");
+            logger()->info("Request: " . json_encode($request->all()));
+
+            // Validasi dasar Laravel
             $basicValidator = Validator::make($request->all(), [
                 'sender_name' => 'required|string|min:3|max:100',
                 'sender_address' => 'required|string|min:10|max:500',
@@ -148,6 +152,7 @@ class ShipmentController extends Controller
             ]);
 
             if ($basicValidator->fails()) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Validasi gagal',
                     'errors' => $basicValidator->errors()
@@ -157,37 +162,32 @@ class ShipmentController extends Controller
             // Validasi manual tambahan
             $errors = [];
 
-            // Validasi nama pengirim
             if ($error = $this->validateName($request->sender_name, 'Nama pengirim')) {
                 $errors['sender_name'] = [$error];
             }
 
-            // Validasi nama penerima
             if ($error = $this->validateName($request->receiver_name, 'Nama penerima')) {
                 $errors['receiver_name'] = [$error];
             }
 
-            // Validasi kode pos pengirim
             if ($error = $this->validatePostalCode($request->sender_postal_code, 'Kode pos pengirim')) {
                 $errors['sender_postal_code'] = [$error];
             }
 
-            // Validasi kode pos penerima
             if ($error = $this->validatePostalCode($request->receiver_postal_code, 'Kode pos penerima')) {
                 $errors['receiver_postal_code'] = [$error];
             }
 
-            // Validasi telepon pengirim
             if ($error = $this->validatePhone($request->sender_phone, 'Nomor telepon pengirim')) {
                 $errors['sender_phone'] = [$error];
             }
 
-            // Validasi telepon penerima
             if ($error = $this->validatePhone($request->receiver_phone, 'Nomor telepon penerima')) {
                 $errors['receiver_phone'] = [$error];
             }
 
             if (!empty($errors)) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Validasi gagal',
                     'errors' => $errors
@@ -223,21 +223,33 @@ class ShipmentController extends Controller
             $data['sender_phone'] = preg_replace('/[^0-9+]/', '', $data['sender_phone']);
             $data['receiver_phone'] = preg_replace('/[^0-9+]/', '', $data['receiver_phone']);
 
+            logger()->info("Creating shipment: {$shipmentCode}");
+
             // Create shipment
             $shipment = Shipment::create($data);
-            TrackingHistory::create([
-            'shipment_id' => $shipment->id,
-            'status' => $data['status'],
-             'location' => $data['sender_city'] . ', ' . $data['sender_province'],
-            'description' => 'Paket telah dibuat dan menunggu untuk diproses',
-            'updated_by' => Auth::id(),
-            'tracked_at' => now(),
-                ]);
 
-return response()->json([
-    'message' => 'Pengiriman berhasil dibuat',
-    'data' => $shipment
-], 201);
+            logger()->info("✅ Shipment created! ID: {$shipment->id}");
+            logger()->info("Creating tracking history...");
+
+            // ✅ AUTO CREATE TRACKING HISTORY
+            $trackingData = [
+                'shipment_id' => $shipment->id,
+                'status' => $data['status'],
+                'location' => $data['sender_city'] . ', ' . $data['sender_province'],
+                'description' => 'Paket telah dibuat dan menunggu untuk diproses',
+                'updated_by' => 1,
+                'tracked_at' => now(),
+            ];
+
+            logger()->info("Tracking data: " . json_encode($trackingData));
+
+            $tracking = TrackingHistory::create($trackingData);
+
+            logger()->info("✅ Tracking created! ID: {$tracking->id}");
+            logger()->info("========== STORE SHIPMENT END ==========");
+
+            // ✅ COMMIT TRANSACTION
+            DB::commit();
 
             return response()->json([
                 'message' => 'Pengiriman berhasil dibuat',
@@ -245,7 +257,13 @@ return response()->json([
             ], 201);
 
         } catch (\Exception $e) {
-            logger()->error('Error create shipment: ' . $e->getMessage());
+            // ✅ ROLLBACK jika ada error
+            DB::rollBack();
+
+            logger()->error('❌ STORE SHIPMENT FAILED!');
+            logger()->error('Error: ' . $e->getMessage());
+            logger()->error('File: ' . $e->getFile() . ':' . $e->getLine());
+            logger()->error('Trace: ' . $e->getTraceAsString());
 
             return response()->json([
                 'message' => 'Gagal membuat pengiriman',
@@ -274,8 +292,20 @@ return response()->json([
      */
     public function update(Request $request, $id)
     {
+        DB::beginTransaction();
+
         try {
-            // Validasi dasar Laravel (tanpa regex)
+            logger()->info("========== UPDATE SHIPMENT START ==========");
+            logger()->info("Shipment ID: {$id}");
+
+            // ✅ AMBIL SHIPMENT & OLD STATUS DULU
+            $shipment = Shipment::findOrFail($id);
+            $oldStatus = $shipment->status;
+
+            logger()->info("Old status: {$oldStatus}");
+            logger()->info("Request: " . json_encode($request->all()));
+
+            // Validasi dasar Laravel
             $basicValidator = Validator::make($request->all(), [
                 'sender_name' => 'sometimes|string|min:3|max:100',
                 'sender_address' => 'sometimes|string|min:10|max:500',
@@ -306,13 +336,14 @@ return response()->json([
             ]);
 
             if ($basicValidator->fails()) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Validasi gagal',
                     'errors' => $basicValidator->errors()
                 ], 422);
             }
 
-            // Validasi manual tambahan (hanya untuk field yang dikirim)
+            // Validasi manual tambahan
             $errors = [];
 
             if ($request->has('sender_name')) {
@@ -352,13 +383,12 @@ return response()->json([
             }
 
             if (!empty($errors)) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Validasi gagal',
                     'errors' => $errors
                 ], 422);
             }
-
-            $shipment = Shipment::findOrFail($id);
 
             $data = $basicValidator->validated();
 
@@ -376,31 +406,48 @@ return response()->json([
                 $data['receiver_phone'] = preg_replace('/[^0-9+]/', '', $data['receiver_phone']);
             }
 
+            logger()->info("Updating shipment...");
             $shipment->update($data);
-            if (isset($data['status']) && $shipment->wasChanged('status')) {
-            $statusMessages = [
-        'pending' => 'Paket menunggu untuk diambil',
-        'picked_up' => 'Paket telah diambil kurir',
-        'in_transit' => 'Paket sedang dalam perjalanan',
-        'arrived_at_hub' => 'Paket tiba di hub sortir',
-        'out_for_delivery' => 'Paket sedang diantar ke tujuan',
-        'delivered' => 'Paket telah sampai di tujuan',
-    ];
+            logger()->info("✅ Shipment updated!");
 
-        TrackingHistory::create([
-        'shipment_id' => $shipment->id,
-        'status' => $data['status'],
-        'location' => $data['receiver_city'] ?? $shipment->receiver_city,
-        'description' => $statusMessages[$data['status']] ?? 'Status pengiriman diperbarui',
-        'updated_by' => Auth::id(),
-        'tracked_at' => now(),
-    ]);
-}
+            $newStatus = $data['status'] ?? $oldStatus;
+            logger()->info("New status: {$newStatus}");
 
-return response()->json([
-    'message' => 'Pengiriman berhasil diupdate',
-    'data' => $shipment
-], 200);
+            // ✅ AUTO CREATE TRACKING HISTORY jika status berubah
+            if (isset($data['status']) && $oldStatus !== $data['status']) {
+                logger()->info("Status changed! Creating tracking history...");
+
+                $statusMessages = [
+                    'pending' => 'Paket menunggu untuk diambil',
+                    'picked_up' => 'Paket telah diambil kurir dari lokasi pengirim',
+                    'in_transit' => 'Paket sedang dalam perjalanan menuju tujuan',
+                    'arrived_at_hub' => 'Paket tiba di hub sortir untuk diproses',
+                    'out_for_delivery' => 'Paket sedang dalam perjalanan menuju alamat penerima',
+                    'delivered' => 'Paket telah sampai dan diterima oleh penerima',
+                ];
+
+                $trackingData = [
+                    'shipment_id' => $shipment->id,
+                    'status' => $data['status'],
+                    'location' => $shipment->receiver_city . ', ' . $shipment->receiver_province,
+                    'description' => $statusMessages[$data['status']] ?? 'Status pengiriman diperbarui',
+                    'updated_by' => 1,
+                    'tracked_at' => now(),
+                ];
+
+                logger()->info("Tracking data: " . json_encode($trackingData));
+
+                $tracking = TrackingHistory::create($trackingData);
+
+                logger()->info("✅ Tracking created! ID: {$tracking->id}");
+            } else {
+                logger()->info("⚠️ Status unchanged - no tracking created");
+            }
+
+            logger()->info("========== UPDATE SHIPMENT END ==========");
+
+            // ✅ COMMIT TRANSACTION
+            DB::commit();
 
             return response()->json([
                 'message' => 'Pengiriman berhasil diupdate',
@@ -408,7 +455,12 @@ return response()->json([
             ], 200);
 
         } catch (\Exception $e) {
-            logger()->error('Error update shipment: ' . $e->getMessage());
+            DB::rollBack();
+
+            logger()->error('❌ UPDATE SHIPMENT FAILED!');
+            logger()->error('Error: ' . $e->getMessage());
+            logger()->error('File: ' . $e->getFile() . ':' . $e->getLine());
+            logger()->error('Trace: ' . $e->getTraceAsString());
 
             return response()->json([
                 'message' => 'Gagal mengupdate pengiriman',

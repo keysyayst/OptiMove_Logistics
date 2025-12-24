@@ -4,45 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Str;
 
 class TrackingHistory extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'uuid',
-        'shipment_id',
-        'status',
-        'location',
-        'description',
-        'latitude',
-        'longitude',
-        'updated_by',
-        'tracked_at',
-    ];
+    protected $table = 'tracking_histories';
+
+    // ✅ ALLOW SEMUA FIELD (untuk testing)
+    protected $guarded = [];
 
     protected $casts = [
-        'latitude' => 'decimal:7',
-        'longitude' => 'decimal:7',
         'tracked_at' => 'datetime',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
     ];
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($model) {
-            if (empty($model->uuid)) {
-                $model->uuid = (string) Str::uuid();
-            }
-            if (empty($model->tracked_at)) {
-                $model->tracked_at = now();
-            }
-        });
-    }
 
     public function shipment()
     {
@@ -66,5 +40,17 @@ class TrackingHistory extends Model
         ];
 
         return $labels[$this->status] ?? $this->status;
+    }
+
+    // ✅ BOOT untuk auto UUID
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->uuid)) {
+                $model->uuid = \Illuminate\Support\Str::uuid();
+            }
+        });
     }
 }
