@@ -35,7 +35,6 @@ class Shipment extends Model
         'height_cm',
         'item_value',
         'service_type',
-        'use_insurance',
     ];
 
     protected $casts = [
@@ -46,7 +45,6 @@ class Shipment extends Model
         'height_cm' => 'decimal:2',
         'item_value' => 'decimal:2',
         'item_quantity' => 'integer',
-        'use_insurance' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

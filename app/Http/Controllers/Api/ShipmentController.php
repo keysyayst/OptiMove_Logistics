@@ -146,7 +146,6 @@ class ShipmentController extends Controller
                 'item_value' => 'nullable|numeric|min:0|max:9999999999.99',
 
                 'service_type' => 'required|in:regular,express,cargo',
-                'use_insurance' => 'nullable|boolean',
                 'shipping_cost' => 'nullable|numeric|min:0|max:99999999.99',
                 'status' => 'nullable|in:pending,picked_up,in_transit,arrived_at_hub,out_for_delivery,delivered',
             ]);
@@ -215,7 +214,6 @@ class ShipmentController extends Controller
             $data['status'] = $data['status'] ?? 'pending';
             $data['service_type'] = $data['service_type'] ?? 'regular';
             $data['item_quantity'] = $data['item_quantity'] ?? 1;
-            $data['use_insurance'] = $data['use_insurance'] ?? 0;
 
             // Bersihkan data
             $data['sender_name'] = trim(preg_replace('/\s+/', ' ', $data['sender_name']));
@@ -328,9 +326,7 @@ class ShipmentController extends Controller
                 'width_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
                 'height_cm' => 'sometimes|nullable|numeric|min:0|max:99999.99',
                 'item_value' => 'sometimes|nullable|numeric|min:0|max:9999999999.99',
-
                 'service_type' => 'sometimes|in:regular,express,cargo',
-                'use_insurance' => 'sometimes|boolean',
                 'shipping_cost' => 'sometimes|numeric|min:0|max:99999999.99',
                 'status' => 'sometimes|in:pending,picked_up,in_transit,arrived_at_hub,out_for_delivery,delivered',
             ]);

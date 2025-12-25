@@ -43,7 +43,6 @@ return new class extends Migration
 
             // Jenis layanan
             $table->enum('service_type', ['regular', 'express', 'cargo'])->default('regular');
-            $table->tinyInteger('use_insurance')->default(0);
 
             $table->timestamps();
         });
