@@ -442,7 +442,6 @@ class ShipmentController extends Controller
 
             logger()->info("========== UPDATE SHIPMENT END ==========");
 
-            // ✅ COMMIT TRANSACTION
             DB::commit();
 
             return response()->json([

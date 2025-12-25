@@ -261,7 +261,7 @@
                     </div>
 
                     <p class="text-[10px] text-gray-500 mt-2">
-                        Formula: Berat yang ditagih (max antara berat aktual & volumetrik) × Rp 5.000/kg + Jarak × Rp 1.500/km
+                        Formula: Berat yang ditagih (max antara berat aktual & volumetrik) × Rp 5.000/kg + Biaya jarak bertingkat (0-10km: Rp 5.000, 11-50km: Rp 10.000, 51-150km: Rp 20.000)
                     </p>
                 </div>
 
@@ -310,7 +310,6 @@ const itemTypeSelect = document.getElementById('item_type');
 const itemTypeOtherInput = document.getElementById('item_type_other');
 
 const TARIF_PER_KG = 5000;
-const TARIF_PER_KM = 1500;
 const DIVIDER_VOLUMETRIK = 5000;
 
 let editingId = null;
@@ -421,7 +420,21 @@ async function estimateDistance(cityFrom, cityTo) {
     }
 }
 
-// CALCULATE SHIPPING COST
+// ✅ FUNGSI HITUNG BIAYA JARAK BERTINGKAT
+function calculateDistanceCost(distance) {
+    if (distance <= 10) {
+        return 5000;
+    } else if (distance <= 50) {
+        return 10000;
+    } else if (distance <= 150) {
+        return 20000;
+    } else {
+        // Jarak > 150 km, tambahkan biaya tambahan jika diperlukan
+        return 20000 + ((distance - 150) * 500);
+    }
+}
+
+// ✅ CALCULATE SHIPPING COST (DIUBAH)
 async function calculateShippingCost() {
     const weight = Number(form.weight.value) || 0;
     const length = Number(form.length_cm.value) || 0;
@@ -437,7 +450,7 @@ async function calculateShippingCost() {
     const costWeight = chargeableWeight * TARIF_PER_KG;
 
     const distance = await estimateDistance(senderCity, receiverCity);
-    const costDistance = distance * TARIF_PER_KM;
+    const costDistance = calculateDistanceCost(distance); // ✅ PERUBAHAN UTAMA
     const totalCost = costWeight + costDistance;
 
     document.getElementById('total-price-display').textContent =
