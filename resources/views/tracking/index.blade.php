@@ -231,7 +231,7 @@
     <footer class="mt-16 py-8 border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
             <p>&copy; 2024 Optimove Logistics. All rights reserved.</p>
-            <p class="mt-2">Heavy & Oversized Logistics for Your Cargo</p>
+            <p class="mt-2">Smart Reliable Logistics for Every Move</p>
         </div>
     </footer>
 

@@ -32,8 +32,10 @@
 
                 <!-- Navigation Desktop -->
                 <div class="hidden md:flex items-center space-x-8">
-                    <a href="#start" class="text-gray-300 hover:text-white transition border-b-2 border-orange-500 pb-1">Start</a>
-                    <a href="#services" class="text-gray-300 hover:text-white transition">Services</a>
+                    <a href="#start" class="text-gray-300 hover:text-white transition border-b-2 border-orange-500 pb-1">Beranda</a>
+                    <a href="#services" class="text-gray-300 hover:text-white transition">Layanan</a>
+                    <a href="{{ route('about') }}" class="text-gray-300 hover:text-white transition">Tentang Kami</a>
+                    <a href="{{ route('contact') }}" class="text-gray-300 hover:text-white transition">Kontak</a>
 
                     <!-- Guest Menu (Not Logged In) -->
                     <div id="guest-menu" class="flex items-center gap-3">
@@ -88,6 +90,8 @@
             <div class="px-4 py-4 space-y-3">
                 <a href="#start" class="block text-gray-300 hover:text-white py-2">Start</a>
                 <a href="#services" class="block text-gray-300 hover:text-white py-2">Services</a>
+                <a href="{{ route('about') }}" class="block text-gray-300 hover:text-white py-2">Tentang Kami</a>
+                <a href="{{ route('contact') }}" class="block text-gray-300 hover:text-white py-2">Kontak</a>
 
                 <!-- Mobile Guest Menu -->
                 <div id="mobile-guest-menu" class="space-y-3 pt-3 border-t border-gray-800">
@@ -254,16 +258,16 @@
                 <div>
                     <h4 class="font-bold mb-4">Layanan</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="#" class="hover:text-orange-500 transition">General Cargo</a></li>
-                        <li><a href="#" class="hover:text-orange-500 transition">Large & Special Cargo</a></li>
-                        <li><a href="#" class="hover:text-orange-500 transition">Express Delivery</a></li>
+                        <li><a href="#services" class="hover:text-orange-500 transition">General Cargo</a></li>
+                        <li><a href="#services" class="hover:text-orange-500 transition">Large & Special Cargo</a></li>
+                        <li><a href="#services" class="hover:text-orange-500 transition">Express Delivery</a></li>
                     </ul>
                 </div>
                 <div>
                     <h4 class="font-bold mb-4">Perusahaan</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="#" class="hover:text-orange-500 transition">Tentang Kami</a></li>
-                        <li><a href="#" class="hover:text-orange-500 transition">Kontak</a></li>
+                        <li><a href="{{ route('about') }}" class="hover:text-orange-500 transition">Tentang Kami</a></li>
+                        <li><a href="{{ route('contact') }}" class="hover:text-orange-500 transition">Kontak</a></li>
                     </ul>
                 </div>
                 <div>
